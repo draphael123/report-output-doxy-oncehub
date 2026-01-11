@@ -14,6 +14,20 @@ from datetime import datetime
 app = Flask(__name__, template_folder='../templates')
 app.secret_key = 'weekly-report-generator-secret-key-2026'
 
+# Names to exclude from all reports
+EXCLUDED_NAMES = ['daniel raphael', 'dan raphael', 'draphael']
+
+
+def should_exclude_name(name):
+    """Check if a name should be excluded from reports."""
+    if pd.isna(name):
+        return False
+    name_lower = str(name).lower().strip()
+    for excluded in EXCLUDED_NAMES:
+        if excluded in name_lower:
+            return True
+    return False
+
 
 def parse_duration_to_minutes(duration_str):
     """Convert duration string (HH:MM:SS) to minutes."""
@@ -31,6 +45,8 @@ def parse_duration_to_minutes(duration_str):
 
 def get_doxy_visits(doxy_df):
     """Section 1: Count visits per provider from Doxy Report."""
+    # Filter out excluded names
+    doxy_df = doxy_df[~doxy_df['Provider name'].apply(should_exclude_name)]
     visits = doxy_df.groupby("Provider name").size().reset_index(name="Total Visits")
     visits = visits.sort_values("Total Visits", ascending=False)
     return visits
@@ -39,6 +55,8 @@ def get_doxy_visits(doxy_df):
 def get_oncehub_visits(booking_df):
     """Section 2: Get visit counts from OnceHub Booking Summary."""
     booking_df['Provider'] = booking_df['Booking page'].str.replace(r'\s*\([^)]*\)', '', regex=True).str.strip()
+    # Filter out excluded names
+    booking_df = booking_df[~booking_df['Provider'].apply(should_exclude_name)]
     result = booking_df[['Provider', 'All activities', 'Scheduled', 'Completed', 'Canceled', 'No-show']].copy()
     result.columns = ['Provider', 'Total Activities', 'Scheduled', 'Completed', 'Canceled', 'No-show']
     result = result.sort_values('Total Activities', ascending=False)
@@ -72,6 +90,9 @@ def get_visits_by_program(account_content):
         return pd.DataFrame(columns=['Provider', 'TRT', 'HRT', 'Other', 'Total'])
     
     df = df[df['Status'] == 'Completed']
+    
+    # Filter out excluded names
+    df = df[~df['Provider'].apply(should_exclude_name)]
     
     def get_category(event_type):
         if pd.isna(event_type):
@@ -143,6 +164,10 @@ def get_gusto_hours(gusto_df, doxy_providers):
     filtered = gusto_df[gusto_df['In_Doxy']][['Name', 'Total hours']].copy()
     filtered['Total hours'] = pd.to_numeric(filtered['Total hours'], errors='coerce')
     filtered = filtered[filtered['Total hours'] > 0]
+    
+    # Filter out excluded names
+    filtered = filtered[~filtered['Name'].apply(should_exclude_name)]
+    
     filtered = filtered.sort_values('Total hours', ascending=False)
     
     return filtered
@@ -150,6 +175,9 @@ def get_gusto_hours(gusto_df, doxy_providers):
 
 def get_doxy_performance_metrics(doxy_df):
     """Section 5: Calculate performance metrics from Doxy Report."""
+    # Filter out excluded names
+    doxy_df = doxy_df[~doxy_df['Provider name'].apply(should_exclude_name)]
+    
     doxy_df['Duration_Minutes'] = doxy_df['Duration'].apply(parse_duration_to_minutes)
     df_valid = doxy_df[doxy_df['Duration_Minutes'].notna()].copy()
     
