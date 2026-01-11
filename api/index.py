@@ -3,7 +3,7 @@ Weekly Report Generator - Vercel Serverless Function
 Upload spreadsheet files and generate consolidated Excel reports.
 """
 
-from flask import Flask, render_template, request, send_file, flash, redirect, url_for, Response
+from flask import Flask, render_template, request, send_file, flash, redirect, url_for, Response, jsonify
 import pandas as pd
 from bs4 import BeautifulSoup
 import re
@@ -17,6 +17,32 @@ app.secret_key = 'weekly-report-generator-secret-key-2026'
 # Names to exclude from all reports
 EXCLUDED_NAMES = ['daniel raphael', 'dan raphael', 'draphael']
 
+# File validation config
+FILE_CONFIGS = {
+    'doxy_file': {
+        'name': 'Doxy Report',
+        'extensions': ['.csv'],
+        'required_columns': ['Provider name', 'Duration'],
+        'max_size_mb': 10
+    },
+    'account_file': {
+        'name': 'Account Detail Report',
+        'extensions': ['.xls', '.xlsx'],
+        'max_size_mb': 10
+    },
+    'gusto_file': {
+        'name': 'Gusto Hours',
+        'extensions': ['.csv'],
+        'max_size_mb': 10
+    },
+    'booking_file': {
+        'name': 'OnceHub Booking Summary',
+        'extensions': ['.csv'],
+        'required_columns': ['Booking page'],
+        'max_size_mb': 10
+    }
+}
+
 
 def should_exclude_name(name):
     """Check if a name should be excluded from reports."""
@@ -27,6 +53,29 @@ def should_exclude_name(name):
         if excluded in name_lower:
             return True
     return False
+
+
+def validate_file(file_obj, config):
+    """Validate a file against its configuration."""
+    errors = []
+    
+    # Check extension
+    filename = file_obj.filename.lower()
+    if not any(filename.endswith(ext) for ext in config['extensions']):
+        errors.append(f"Invalid file type. Expected: {', '.join(config['extensions'])}")
+    
+    # Check file size
+    file_obj.seek(0, 2)  # Seek to end
+    size_mb = file_obj.tell() / (1024 * 1024)
+    file_obj.seek(0)  # Reset to beginning
+    
+    if size_mb > config['max_size_mb']:
+        errors.append(f"File too large ({size_mb:.1f}MB). Max: {config['max_size_mb']}MB")
+    
+    if size_mb == 0:
+        errors.append("File is empty")
+    
+    return errors
 
 
 def parse_duration_to_minutes(duration_str):
@@ -230,9 +279,19 @@ def get_hours_worked(gusto_hours, performance_metrics):
 
 
 def generate_report(doxy_file, account_file, gusto_file, booking_file):
-    """Generate the complete Excel report."""
+    """Generate the complete Excel report with detailed error handling."""
+    errors = []
+    
     # Read Doxy Report
-    doxy_df = pd.read_csv(doxy_file)
+    try:
+        doxy_df = pd.read_csv(doxy_file)
+        if 'Provider name' not in doxy_df.columns:
+            errors.append("Doxy Report missing 'Provider name' column")
+        if 'Duration' not in doxy_df.columns:
+            errors.append("Doxy Report missing 'Duration' column")
+    except Exception as e:
+        errors.append(f"Error reading Doxy Report: {str(e)}")
+        doxy_df = None
     
     # Read Account Detail Report (try different encodings)
     account_content = None
@@ -245,15 +304,29 @@ def generate_report(doxy_file, account_file, gusto_file, booking_file):
             continue
     
     if account_content is None:
-        raise ValueError("Could not decode Account Detail Report")
+        errors.append("Could not decode Account Detail Report - try a different file format")
     
     # Read Gusto Hours (skip header rows)
-    gusto_file.seek(0)
-    gusto_df = pd.read_csv(gusto_file, skiprows=8, header=0)
+    try:
+        gusto_file.seek(0)
+        gusto_df = pd.read_csv(gusto_file, skiprows=8, header=0)
+    except Exception as e:
+        errors.append(f"Error reading Gusto file: {str(e)}")
+        gusto_df = None
     
     # Read Booking Summary (OnceHub)
-    booking_file.seek(0)
-    booking_df = pd.read_csv(booking_file)
+    try:
+        booking_file.seek(0)
+        booking_df = pd.read_csv(booking_file)
+        if 'Booking page' not in booking_df.columns:
+            errors.append("OnceHub file missing 'Booking page' column")
+    except Exception as e:
+        errors.append(f"Error reading OnceHub file: {str(e)}")
+        booking_df = None
+    
+    # If there are critical errors, raise them
+    if errors:
+        raise ValueError("\n".join(errors))
     
     # Generate all sections
     doxy_visits = get_doxy_visits(doxy_df)
@@ -264,6 +337,13 @@ def generate_report(doxy_file, account_file, gusto_file, booking_file):
     gusto_hours = get_gusto_hours(gusto_df, doxy_providers)
     performance_metrics = get_doxy_performance_metrics(doxy_df)
     hours_worked = get_hours_worked(gusto_hours, performance_metrics)
+    
+    # Calculate stats for response
+    stats = {
+        'providers': len(doxy_visits),
+        'total_visits': int(doxy_visits['Total Visits'].sum()),
+        'sheets': 6
+    }
     
     # Create Excel file in memory
     output = io.BytesIO()
@@ -277,18 +357,36 @@ def generate_report(doxy_file, account_file, gusto_file, booking_file):
         hours_worked.to_excel(writer, sheet_name='Hours Worked', index=False)
     
     output.seek(0)
-    return output
+    return output, stats
 
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
-        # Check if all files are present
+        # Validate all files are present
         required_files = ['doxy_file', 'account_file', 'gusto_file', 'booking_file']
+        missing_files = []
+        
         for file_name in required_files:
             if file_name not in request.files or request.files[file_name].filename == '':
-                flash('Please upload all required files', 'error')
-                return redirect(request.url)
+                missing_files.append(FILE_CONFIGS[file_name]['name'])
+        
+        if missing_files:
+            flash(f"Missing files: {', '.join(missing_files)}", 'error')
+            return redirect(request.url)
+        
+        # Validate each file
+        validation_errors = []
+        for file_name in required_files:
+            file_obj = request.files[file_name]
+            errors = validate_file(file_obj, FILE_CONFIGS[file_name])
+            for error in errors:
+                validation_errors.append(f"{FILE_CONFIGS[file_name]['name']}: {error}")
+        
+        if validation_errors:
+            for error in validation_errors:
+                flash(error, 'error')
+            return redirect(request.url)
         
         doxy_file = request.files['doxy_file']
         account_file = request.files['account_file']
@@ -297,27 +395,74 @@ def index():
         
         try:
             # Generate the report
-            output = generate_report(doxy_file, account_file, gusto_file, booking_file)
+            output, stats = generate_report(doxy_file, account_file, gusto_file, booking_file)
             
-            # Get report name from form or use default
-            report_name = request.form.get('report_name', 'Weekly Report')
+            # Get report name from form or generate from dates
+            report_name = request.form.get('report_name', '').strip()
+            
             if not report_name:
-                report_name = 'Weekly Report'
+                start_date = request.form.get('start_date', '')
+                end_date = request.form.get('end_date', '')
+                
+                if start_date and end_date:
+                    try:
+                        start = datetime.strptime(start_date, '%Y-%m-%d')
+                        end = datetime.strptime(end_date, '%Y-%m-%d')
+                        report_name = f"Report {start.month}-{start.day} to {end.month}-{end.day}"
+                    except ValueError:
+                        report_name = 'Weekly Report'
+                else:
+                    report_name = f'Weekly Report {datetime.now().strftime("%m-%d-%Y")}'
             
             return Response(
                 output.getvalue(),
                 mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                 headers={
-                    'Content-Disposition': f'attachment; filename="{report_name}.xlsx"'
+                    'Content-Disposition': f'attachment; filename="{report_name}.xlsx"',
+                    'X-Report-Providers': str(stats['providers']),
+                    'X-Report-Visits': str(stats['total_visits'])
                 }
             )
+        except ValueError as e:
+            # Specific validation errors
+            for line in str(e).split('\n'):
+                flash(line, 'error')
+            return redirect(request.url)
         except Exception as e:
-            flash(f'Error generating report: {str(e)}', 'error')
+            flash(f'Unexpected error: {str(e)}', 'error')
             return redirect(request.url)
     
     return render_template('index.html')
 
 
+@app.route('/validate', methods=['POST'])
+def validate_files():
+    """API endpoint to validate files before submission."""
+    results = {}
+    
+    for file_name in ['doxy_file', 'account_file', 'gusto_file', 'booking_file']:
+        if file_name in request.files and request.files[file_name].filename != '':
+            file_obj = request.files[file_name]
+            errors = validate_file(file_obj, FILE_CONFIGS[file_name])
+            
+            file_obj.seek(0, 2)
+            size = file_obj.tell()
+            file_obj.seek(0)
+            
+            results[file_name] = {
+                'valid': len(errors) == 0,
+                'filename': file_obj.filename,
+                'size': size,
+                'errors': errors
+            }
+        else:
+            results[file_name] = {
+                'valid': False,
+                'errors': ['No file uploaded']
+            }
+    
+    return jsonify(results)
+
+
 # Vercel serverless handler
 app = app
-

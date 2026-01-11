@@ -1,28 +1,81 @@
 """
-Weekly Report Generator Web Application
+Weekly Report Generator - Local Flask Application
 Upload spreadsheet files and generate consolidated Excel reports.
-
-For local development, run: python app.py
-For Vercel deployment, see api/index.py
 """
 
-from flask import Flask, render_template, request, send_file, flash, redirect, url_for, Response
+from flask import Flask, render_template, request, send_file, flash, redirect, url_for, Response, jsonify
 import pandas as pd
 from bs4 import BeautifulSoup
 import re
 import io
 import tempfile
 from datetime import datetime
-from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 app.secret_key = 'weekly-report-generator-secret-key-2026'
 
-ALLOWED_EXTENSIONS = {'csv', 'xls', 'xlsx'}
+# Names to exclude from all reports
+EXCLUDED_NAMES = ['daniel raphael', 'dan raphael', 'draphael']
+
+# File validation config
+FILE_CONFIGS = {
+    'doxy_file': {
+        'name': 'Doxy Report',
+        'extensions': ['.csv'],
+        'required_columns': ['Provider name', 'Duration'],
+        'max_size_mb': 10
+    },
+    'account_file': {
+        'name': 'Account Detail Report',
+        'extensions': ['.xls', '.xlsx'],
+        'max_size_mb': 10
+    },
+    'gusto_file': {
+        'name': 'Gusto Hours',
+        'extensions': ['.csv'],
+        'max_size_mb': 10
+    },
+    'booking_file': {
+        'name': 'OnceHub Booking Summary',
+        'extensions': ['.csv'],
+        'required_columns': ['Booking page'],
+        'max_size_mb': 10
+    }
+}
 
 
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+def should_exclude_name(name):
+    """Check if a name should be excluded from reports."""
+    if pd.isna(name):
+        return False
+    name_lower = str(name).lower().strip()
+    for excluded in EXCLUDED_NAMES:
+        if excluded in name_lower:
+            return True
+    return False
+
+
+def validate_file(file_obj, config):
+    """Validate a file against its configuration."""
+    errors = []
+    
+    # Check extension
+    filename = file_obj.filename.lower()
+    if not any(filename.endswith(ext) for ext in config['extensions']):
+        errors.append(f"Invalid file type. Expected: {', '.join(config['extensions'])}")
+    
+    # Check file size
+    file_obj.seek(0, 2)  # Seek to end
+    size_mb = file_obj.tell() / (1024 * 1024)
+    file_obj.seek(0)  # Reset to beginning
+    
+    if size_mb > config['max_size_mb']:
+        errors.append(f"File too large ({size_mb:.1f}MB). Max: {config['max_size_mb']}MB")
+    
+    if size_mb == 0:
+        errors.append("File is empty")
+    
+    return errors
 
 
 def parse_duration_to_minutes(duration_str):
@@ -41,6 +94,8 @@ def parse_duration_to_minutes(duration_str):
 
 def get_doxy_visits(doxy_df):
     """Section 1: Count visits per provider from Doxy Report."""
+    # Filter out excluded names
+    doxy_df = doxy_df[~doxy_df['Provider name'].apply(should_exclude_name)]
     visits = doxy_df.groupby("Provider name").size().reset_index(name="Total Visits")
     visits = visits.sort_values("Total Visits", ascending=False)
     return visits
@@ -48,21 +103,17 @@ def get_doxy_visits(doxy_df):
 
 def get_oncehub_visits(booking_df):
     """Section 2: Get visit counts from OnceHub Booking Summary."""
-    # Clean up the Booking page column to extract provider name
     booking_df['Provider'] = booking_df['Booking page'].str.replace(r'\s*\([^)]*\)', '', regex=True).str.strip()
-    
-    # Select relevant columns
+    # Filter out excluded names
+    booking_df = booking_df[~booking_df['Provider'].apply(should_exclude_name)]
     result = booking_df[['Provider', 'All activities', 'Scheduled', 'Completed', 'Canceled', 'No-show']].copy()
     result.columns = ['Provider', 'Total Activities', 'Scheduled', 'Completed', 'Canceled', 'No-show']
-    
-    # Sort by total activities
     result = result.sort_values('Total Activities', ascending=False)
-    
     return result
 
 
 def get_visits_by_program(account_content):
-    """Section 2: Parse AccountDetailReport and categorize visits."""
+    """Section 3: Parse AccountDetailReport and categorize visits."""
     soup = BeautifulSoup(account_content, 'html.parser')
     rows = soup.find_all('tr')
     
@@ -88,6 +139,9 @@ def get_visits_by_program(account_content):
         return pd.DataFrame(columns=['Provider', 'TRT', 'HRT', 'Other', 'Total'])
     
     df = df[df['Status'] == 'Completed']
+    
+    # Filter out excluded names
+    df = df[~df['Provider'].apply(should_exclude_name)]
     
     def get_category(event_type):
         if pd.isna(event_type):
@@ -125,7 +179,7 @@ def get_visits_by_program(account_content):
 
 
 def get_gusto_hours(gusto_df, doxy_providers):
-    """Section 3: Extract Gusto hours for providers in visit data."""
+    """Section 4: Extract Gusto hours for providers in visit data."""
     if len(gusto_df.columns) >= 4:
         gusto_df.columns = ['Name', 'Title', 'Manager', 'Total hours'] + list(gusto_df.columns[4:])
     
@@ -159,13 +213,20 @@ def get_gusto_hours(gusto_df, doxy_providers):
     filtered = gusto_df[gusto_df['In_Doxy']][['Name', 'Total hours']].copy()
     filtered['Total hours'] = pd.to_numeric(filtered['Total hours'], errors='coerce')
     filtered = filtered[filtered['Total hours'] > 0]
+    
+    # Filter out excluded names
+    filtered = filtered[~filtered['Name'].apply(should_exclude_name)]
+    
     filtered = filtered.sort_values('Total hours', ascending=False)
     
     return filtered
 
 
 def get_doxy_performance_metrics(doxy_df):
-    """Section 4: Calculate performance metrics from Doxy Report."""
+    """Section 5: Calculate performance metrics from Doxy Report."""
+    # Filter out excluded names
+    doxy_df = doxy_df[~doxy_df['Provider name'].apply(should_exclude_name)]
+    
     doxy_df['Duration_Minutes'] = doxy_df['Duration'].apply(parse_duration_to_minutes)
     df_valid = doxy_df[doxy_df['Duration_Minutes'].notna()].copy()
     
@@ -192,7 +253,7 @@ def get_doxy_performance_metrics(doxy_df):
 
 
 def get_hours_worked(gusto_hours, performance_metrics):
-    """Section 5: Calculate hours worked assuming all visits are 20 minutes."""
+    """Section 6: Calculate hours worked assuming all visits are 20 minutes."""
     def normalize_name(name):
         if pd.isna(name):
             return ''
@@ -218,9 +279,19 @@ def get_hours_worked(gusto_hours, performance_metrics):
 
 
 def generate_report(doxy_file, account_file, gusto_file, booking_file):
-    """Generate the complete Excel report."""
+    """Generate the complete Excel report with detailed error handling."""
+    errors = []
+    
     # Read Doxy Report
-    doxy_df = pd.read_csv(doxy_file)
+    try:
+        doxy_df = pd.read_csv(doxy_file)
+        if 'Provider name' not in doxy_df.columns:
+            errors.append("Doxy Report missing 'Provider name' column")
+        if 'Duration' not in doxy_df.columns:
+            errors.append("Doxy Report missing 'Duration' column")
+    except Exception as e:
+        errors.append(f"Error reading Doxy Report: {str(e)}")
+        doxy_df = None
     
     # Read Account Detail Report (try different encodings)
     account_content = None
@@ -233,15 +304,29 @@ def generate_report(doxy_file, account_file, gusto_file, booking_file):
             continue
     
     if account_content is None:
-        raise ValueError("Could not decode Account Detail Report")
+        errors.append("Could not decode Account Detail Report - try a different file format")
     
     # Read Gusto Hours (skip header rows)
-    gusto_file.seek(0)
-    gusto_df = pd.read_csv(gusto_file, skiprows=8, header=0)
+    try:
+        gusto_file.seek(0)
+        gusto_df = pd.read_csv(gusto_file, skiprows=8, header=0)
+    except Exception as e:
+        errors.append(f"Error reading Gusto file: {str(e)}")
+        gusto_df = None
     
     # Read Booking Summary (OnceHub)
-    booking_file.seek(0)
-    booking_df = pd.read_csv(booking_file)
+    try:
+        booking_file.seek(0)
+        booking_df = pd.read_csv(booking_file)
+        if 'Booking page' not in booking_df.columns:
+            errors.append("OnceHub file missing 'Booking page' column")
+    except Exception as e:
+        errors.append(f"Error reading OnceHub file: {str(e)}")
+        booking_df = None
+    
+    # If there are critical errors, raise them
+    if errors:
+        raise ValueError("\n".join(errors))
     
     # Generate all sections
     doxy_visits = get_doxy_visits(doxy_df)
@@ -253,10 +338,17 @@ def generate_report(doxy_file, account_file, gusto_file, booking_file):
     performance_metrics = get_doxy_performance_metrics(doxy_df)
     hours_worked = get_hours_worked(gusto_hours, performance_metrics)
     
-    # Create Excel file
-    output = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
+    # Calculate stats for response
+    stats = {
+        'providers': len(doxy_visits),
+        'total_visits': int(doxy_visits['Total Visits'].sum()),
+        'sheets': 6
+    }
     
-    with pd.ExcelWriter(output.name, engine='openpyxl') as writer:
+    # Create Excel file in memory
+    output = io.BytesIO()
+    
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
         doxy_visits.to_excel(writer, sheet_name='Doxy Visits', index=False)
         oncehub_visits.to_excel(writer, sheet_name='OnceHub Visits', index=False)
         visits_by_program.to_excel(writer, sheet_name='Visits by Program', index=False)
@@ -264,18 +356,36 @@ def generate_report(doxy_file, account_file, gusto_file, booking_file):
         performance_metrics.to_excel(writer, sheet_name='Doxy Performance Metrics', index=False)
         hours_worked.to_excel(writer, sheet_name='Hours Worked', index=False)
     
-    return output.name
+    output.seek(0)
+    return output, stats
 
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
-        # Check if all files are present
-        if 'doxy_file' not in request.files or \
-           'account_file' not in request.files or \
-           'gusto_file' not in request.files or \
-           'booking_file' not in request.files:
-            flash('Please upload all required files', 'error')
+        # Validate all files are present
+        required_files = ['doxy_file', 'account_file', 'gusto_file', 'booking_file']
+        missing_files = []
+        
+        for file_name in required_files:
+            if file_name not in request.files or request.files[file_name].filename == '':
+                missing_files.append(FILE_CONFIGS[file_name]['name'])
+        
+        if missing_files:
+            flash(f"Missing files: {', '.join(missing_files)}", 'error')
+            return redirect(request.url)
+        
+        # Validate each file
+        validation_errors = []
+        for file_name in required_files:
+            file_obj = request.files[file_name]
+            errors = validate_file(file_obj, FILE_CONFIGS[file_name])
+            for error in errors:
+                validation_errors.append(f"{FILE_CONFIGS[file_name]['name']}: {error}")
+        
+        if validation_errors:
+            for error in validation_errors:
+                flash(error, 'error')
             return redirect(request.url)
         
         doxy_file = request.files['doxy_file']
@@ -283,33 +393,76 @@ def index():
         gusto_file = request.files['gusto_file']
         booking_file = request.files['booking_file']
         
-        if doxy_file.filename == '' or account_file.filename == '' or \
-           gusto_file.filename == '' or booking_file.filename == '':
-            flash('Please select all required files', 'error')
-            return redirect(request.url)
-        
         try:
             # Generate the report
-            report_path = generate_report(doxy_file, account_file, gusto_file, booking_file)
+            output, stats = generate_report(doxy_file, account_file, gusto_file, booking_file)
             
-            # Get report name from form or use default
-            report_name = request.form.get('report_name', 'Weekly Report')
+            # Get report name from form or generate from dates
+            report_name = request.form.get('report_name', '').strip()
+            
             if not report_name:
-                report_name = 'Weekly Report'
+                start_date = request.form.get('start_date', '')
+                end_date = request.form.get('end_date', '')
+                
+                if start_date and end_date:
+                    try:
+                        start = datetime.strptime(start_date, '%Y-%m-%d')
+                        end = datetime.strptime(end_date, '%Y-%m-%d')
+                        report_name = f"Report {start.month}-{start.day} to {end.month}-{end.day}"
+                    except ValueError:
+                        report_name = 'Weekly Report'
+                else:
+                    report_name = f'Weekly Report {datetime.now().strftime("%m-%d-%Y")}'
             
-            return send_file(
-                report_path,
-                as_attachment=True,
-                download_name=f'{report_name}.xlsx',
-                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            return Response(
+                output.getvalue(),
+                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                headers={
+                    'Content-Disposition': f'attachment; filename="{report_name}.xlsx"',
+                    'X-Report-Providers': str(stats['providers']),
+                    'X-Report-Visits': str(stats['total_visits'])
+                }
             )
+        except ValueError as e:
+            # Specific validation errors
+            for line in str(e).split('\n'):
+                flash(line, 'error')
+            return redirect(request.url)
         except Exception as e:
-            flash(f'Error generating report: {str(e)}', 'error')
+            flash(f'Unexpected error: {str(e)}', 'error')
             return redirect(request.url)
     
     return render_template('index.html')
 
 
+@app.route('/validate', methods=['POST'])
+def validate_files():
+    """API endpoint to validate files before submission."""
+    results = {}
+    
+    for file_name in ['doxy_file', 'account_file', 'gusto_file', 'booking_file']:
+        if file_name in request.files and request.files[file_name].filename != '':
+            file_obj = request.files[file_name]
+            errors = validate_file(file_obj, FILE_CONFIGS[file_name])
+            
+            file_obj.seek(0, 2)
+            size = file_obj.tell()
+            file_obj.seek(0)
+            
+            results[file_name] = {
+                'valid': len(errors) == 0,
+                'filename': file_obj.filename,
+                'size': size,
+                'errors': errors
+            }
+        else:
+            results[file_name] = {
+                'valid': False,
+                'errors': ['No file uploaded']
+            }
+    
+    return jsonify(results)
+
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
-
