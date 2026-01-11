@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weekly Report Generator</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #0f766e;
+            --primary-dark: #0d5d56;
+            --primary-light: #14b8a6;
+            --bg-dark: #0c1222;
+            --bg-card: #151d2e;
+            --bg-input: #1a2438;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border: #2d3a4f;
+            --success: #22c55e;
+            --error: #ef4444;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem;
+            background-image: 
+                radial-gradient(ellipse at top, rgba(15, 118, 110, 0.15) 0%, transparent 50%),
+                radial-gradient(ellipse at bottom right, rgba(20, 184, 166, 0.1) 0%, transparent 50%);
+        }
+
+        .container {
+            max-width: 700px;
+            width: 100%;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .logo {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .logo-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--text-primary) 0%, var(--primary-light) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            margin-top: 0.5rem;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+        }
+
+        .flash-messages {
+            margin-bottom: 1.5rem;
+        }
+
+        .flash {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        .flash.error {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid var(--error);
+            color: #fca5a5;
+        }
+
+        .flash.success {
+            background: rgba(34, 197, 94, 0.15);
+            border: 1px solid var(--success);
+            color: #86efac;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+
+        .label-hint {
+            font-weight: 400;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-left: 0.5rem;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 0.875rem 1rem;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 1rem;
+            font-family: inherit;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: var(--primary-light);
+            box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.2);
+        }
+
+        input[type="text"]::placeholder {
+            color: var(--text-secondary);
+        }
+
+        .file-upload {
+            position: relative;
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.2s;
+            cursor: pointer;
+            background: var(--bg-input);
+        }
+
+        .file-upload:hover {
+            border-color: var(--primary-light);
+            background: rgba(20, 184, 166, 0.05);
+        }
+
+        .file-upload.has-file {
+            border-color: var(--success);
+            border-style: solid;
+        }
+
+        .file-upload input[type="file"] {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .file-upload-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .file-upload-text {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .file-upload-text strong {
+            color: var(--primary-light);
+        }
+
+        .file-name {
+            margin-top: 0.5rem;
+            font-size: 0.875rem;
+            color: var(--success);
+            font-weight: 500;
+        }
+
+        .file-types {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 0.5rem;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 1rem;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-size: 1.1rem;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(15, 118, 110, 0.4);
+        }
+
+        .submit-btn:active {
+            transform: translateY(0);
+        }
+
+        .info-section {
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .info-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .sheets-list {
+            display: grid;
+            gap: 0.75rem;
+        }
+
+        .sheet-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            background: var(--bg-input);
+            border-radius: 8px;
+        }
+
+        .sheet-number {
+            width: 24px;
+            height: 24px;
+            background: var(--primary);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        .sheet-info h4 {
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .sheet-info p {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+
+        footer {
+            margin-top: 2rem;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <div class="logo-icon">📊</div>
+                <h1>Weekly Report Generator</h1>
+            </div>
+            <p class="subtitle">Upload your data files to generate a consolidated Excel report</p>
+        </header>
+
+        <div class="card">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-messages">
+                        {% for category, message in messages %}
+                            <div class="flash {{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <form method="POST" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="report_name">Report Name</label>
+                    <input type="text" id="report_name" name="report_name" placeholder="e.g., Report 1-11">
+                </div>
+
+                <div class="form-group">
+                    <label>Doxy Report <span class="label-hint">(CSV)</span></label>
+                    <div class="file-upload" id="doxy-upload">
+                        <input type="file" name="doxy_file" accept=".csv" required onchange="updateFileName(this, 'doxy-upload')">
+                        <div class="file-upload-icon">📋</div>
+                        <div class="file-upload-text"><strong>Click to upload</strong> or drag and drop</div>
+                        <div class="file-name" id="doxy-filename"></div>
+                        <div class="file-types">Doxy Report.csv</div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Account Detail Report <span class="label-hint">(XLS)</span></label>
+                    <div class="file-upload" id="account-upload">
+                        <input type="file" name="account_file" accept=".xls,.xlsx" required onchange="updateFileName(this, 'account-upload')">
+                        <div class="file-upload-icon">📑</div>
+                        <div class="file-upload-text"><strong>Click to upload</strong> or drag and drop</div>
+                        <div class="file-name" id="account-filename"></div>
+                        <div class="file-types">AccountDetailReport_[dates].xls</div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Gusto Hours <span class="label-hint">(CSV)</span></label>
+                    <div class="file-upload" id="gusto-upload">
+                        <input type="file" name="gusto_file" accept=".csv" required onchange="updateFileName(this, 'gusto-upload')">
+                        <div class="file-upload-icon">⏱️</div>
+                        <div class="file-upload-text"><strong>Click to upload</strong> or drag and drop</div>
+                        <div class="file-name" id="gusto-filename"></div>
+                        <div class="file-types">duval-medical-p-a-time-tracking-hours-[dates].csv</div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>OnceHub Booking Summary <span class="label-hint">(CSV)</span></label>
+                    <div class="file-upload" id="booking-upload">
+                        <input type="file" name="booking_file" accept=".csv" required onchange="updateFileName(this, 'booking-upload')">
+                        <div class="file-upload-icon">📅</div>
+                        <div class="file-upload-text"><strong>Click to upload</strong> or drag and drop</div>
+                        <div class="file-name" id="booking-filename"></div>
+                        <div class="file-types">BookingPageSummaryReport_[dates].csv</div>
+                    </div>
+                </div>
+
+                <button type="submit" class="submit-btn">
+                    <span>📥</span> Generate Report
+                </button>
+            </form>
+
+            <div class="info-section">
+                <div class="info-title">Report Contents</div>
+                <div class="sheets-list">
+                    <div class="sheet-item">
+                        <div class="sheet-number">1</div>
+                        <div class="sheet-info">
+                            <h4>Doxy Visits</h4>
+                            <p>Visit counts per provider from Doxy</p>
+                        </div>
+                    </div>
+                    <div class="sheet-item">
+                        <div class="sheet-number">2</div>
+                        <div class="sheet-info">
+                            <h4>OnceHub Visits</h4>
+                            <p>Visit counts from OnceHub booking system</p>
+                        </div>
+                    </div>
+                    <div class="sheet-item">
+                        <div class="sheet-number">3</div>
+                        <div class="sheet-info">
+                            <h4>Visits by Program</h4>
+                            <p>Grouped by TRT, HRT, and Other</p>
+                        </div>
+                    </div>
+                    <div class="sheet-item">
+                        <div class="sheet-number">4</div>
+                        <div class="sheet-info">
+                            <h4>Gusto Hours</h4>
+                            <p>Hours worked from time tracking</p>
+                        </div>
+                    </div>
+                    <div class="sheet-item">
+                        <div class="sheet-number">5</div>
+                        <div class="sheet-info">
+                            <h4>Doxy Performance Metrics</h4>
+                            <p>Visits over 20 minutes analysis</p>
+                        </div>
+                    </div>
+                    <div class="sheet-item">
+                        <div class="sheet-number">6</div>
+                        <div class="sheet-info">
+                            <h4>Hours Worked</h4>
+                            <p>Calculated hours (20 min/visit)</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            Weekly Report Generator &copy; 2026
+        </footer>
+    </div>
+
+    <script>
+        function updateFileName(input, uploadId) {
+            const container = document.getElementById(uploadId);
+            const filenameDiv = container.querySelector('.file-name');
+            
+            if (input.files && input.files[0]) {
+                filenameDiv.textContent = '✓ ' + input.files[0].name;
+                container.classList.add('has-file');
+            } else {
+                filenameDiv.textContent = '';
+                container.classList.remove('has-file');
+            }
+        }
+    </script>
+</body>
+</html>
+
