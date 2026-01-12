@@ -378,17 +378,21 @@ def get_hours_worked(gusto_hours, visits_by_program):
             hrt = row['HRT'] if 'HRT' in row else 0
             other = row['Other'] if 'Other' in row else 0
             total = row['Total'] if 'Total' in row else (trt + hrt + other)
-            hours_worked = round((trt * 20 + hrt * 30 + other * 20) / 60, 2)
-            
-            new_row = pd.DataFrame({
-                'Provider': [provider_name],
-                'Gusto Hours': ['N/A'],
-                'TRT Visits (20 min)': [trt],
-                'HRT Visits (30 min)': [hrt],
-                'Total Visits': [total],
-                'Hours Worked': [hours_worked]
-            })
-            result = pd.concat([result, new_row], ignore_index=True)
+        else:
+            # No visits found - show 0 hours worked
+            trt, hrt, other, total = 0, 0, 0, 0
+        
+        hours_worked = round((trt * 20 + hrt * 30 + other * 20) / 60, 2)
+        
+        new_row = pd.DataFrame({
+            'Provider': [provider_name],
+            'Gusto Hours': ['N/A'],
+            'TRT Visits (20 min)': [trt],
+            'HRT Visits (30 min)': [hrt],
+            'Total Visits': [total],
+            'Hours Worked': [hours_worked]
+        })
+        result = pd.concat([result, new_row], ignore_index=True)
     
     return result
 
