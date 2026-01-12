@@ -34,7 +34,13 @@ PROVIDERS_NA_HOURS = [
     'Tzvi Doron',
     'Doron Stember',
     'Lindsay Burden NP',
+    'Terray Humphrey',
 ]
+
+# Name mappings for Visits by Program (alternative names)
+VISIT_NAME_MAPPINGS = {
+    'terray humphrey': 'Darius Humphrey',
+}
 
 # File validation config
 FILE_CONFIGS = {
@@ -359,7 +365,11 @@ def get_hours_worked(gusto_hours, visits_by_program):
     # Add N/A providers with calculated hours from visits
     for provider_name in PROVIDERS_NA_HOURS:
         provider_norm = normalize_name(provider_name)
-        visit_match = visits[visits['Name_norm'] == provider_norm]
+        # Check if there's an alternative name mapping for visits
+        lookup_name = VISIT_NAME_MAPPINGS.get(provider_norm, provider_norm)
+        if lookup_name != provider_norm:
+            lookup_name = normalize_name(lookup_name)
+        visit_match = visits[visits['Name_norm'] == lookup_name]
         if not visit_match.empty:
             row = visit_match.iloc[0]
             trt = row['TRT'] if 'TRT' in row else 0
