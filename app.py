@@ -648,5 +648,115 @@ def validate_files():
     return jsonify(results)
 
 
+@app.route('/preview', methods=['POST'])
+def preview_report():
+    """API endpoint to preview report data before download."""
+    # Validate required files
+    required_files = ['doxy_file', 'account_file', 'gusto_file']
+    missing_files = []
+    
+    for file_name in required_files:
+        if file_name not in request.files or request.files[file_name].filename == '':
+            missing_files.append(FILE_CONFIGS[file_name]['name'])
+    
+    if missing_files:
+        return jsonify({'error': f"Missing required files: {', '.join(missing_files)}"}), 400
+    
+    try:
+        doxy_file = request.files['doxy_file']
+        account_file = request.files['account_file']
+        gusto_file = request.files['gusto_file']
+        booking_file = request.files.get('booking_file') if 'booking_file' in request.files and request.files['booking_file'].filename else None
+        
+        # Read files
+        doxy_df = read_file_as_dataframe(doxy_file)
+        
+        account_content = None
+        account_is_csv = account_file.filename.lower().endswith('.csv')
+        for encoding in ['utf-16', 'utf-8', 'latin-1', 'cp1252']:
+            try:
+                account_file.seek(0)
+                account_content = account_file.read().decode(encoding)
+                break
+            except (UnicodeDecodeError, UnicodeError):
+                continue
+        
+        gusto_df = read_file_as_dataframe(gusto_file, skiprows=8)
+        
+        booking_df = None
+        if booking_file:
+            try:
+                booking_df = read_file_as_dataframe(booking_file)
+                booking_col = None
+                for col in booking_df.columns:
+                    col_lower = str(col).lower()
+                    if 'booking' in col_lower or 'page' in col_lower:
+                        booking_col = col
+                        break
+                if booking_col and booking_col != 'Booking page':
+                    booking_df = booking_df.rename(columns={booking_col: 'Booking page'})
+                elif 'Booking page' not in booking_df.columns:
+                    booking_df = booking_df.rename(columns={booking_df.columns[0]: 'Booking page'})
+            except:
+                booking_df = None
+        
+        # Generate preview data
+        doxy_visits = get_doxy_visits(doxy_df)
+        doxy_providers = doxy_visits['Provider name'].tolist()
+        oncehub_visits = get_oncehub_visits(booking_df) if booking_df is not None else None
+        visits_by_program = get_visits_by_program(account_content, is_csv=account_is_csv)
+        gusto_hours = get_gusto_hours(gusto_df, doxy_providers)
+        performance_metrics = get_doxy_performance_metrics(doxy_df)
+        hours_worked = get_hours_worked(gusto_hours, visits_by_program)
+        
+        # Build preview response
+        preview = {
+            'sheets': [
+                {
+                    'name': 'Doxy Visits',
+                    'rows': len(doxy_visits),
+                    'top_providers': doxy_visits.head(5).to_dict('records'),
+                    'total_visits': int(doxy_visits['Total Visits'].sum())
+                },
+                {
+                    'name': 'OnceHub Visits',
+                    'rows': len(oncehub_visits) if oncehub_visits is not None else 0,
+                    'available': oncehub_visits is not None
+                },
+                {
+                    'name': 'Visits by Program',
+                    'rows': len(visits_by_program),
+                    'trt_total': int(visits_by_program['TRT'].sum()) if 'TRT' in visits_by_program.columns else 0,
+                    'hrt_total': int(visits_by_program['HRT'].sum()) if 'HRT' in visits_by_program.columns else 0
+                },
+                {
+                    'name': 'Gusto Hours',
+                    'rows': len(gusto_hours),
+                    'providers_with_hours': len(gusto_hours[gusto_hours['Total hours'] != 'N/A'])
+                },
+                {
+                    'name': 'Doxy Performance',
+                    'rows': len(performance_metrics),
+                    'avg_duration': round(performance_metrics['Avg Duration (min)'].mean(), 1) if len(performance_metrics) > 0 else 0
+                },
+                {
+                    'name': 'Hours Worked',
+                    'rows': len(hours_worked),
+                    'total_hours': round(hours_worked['Hours Worked'].sum(), 1)
+                }
+            ],
+            'summary': {
+                'total_providers': len(doxy_visits),
+                'total_doxy_visits': int(doxy_visits['Total Visits'].sum()),
+                'total_hours_worked': round(hours_worked['Hours Worked'].sum(), 1)
+            }
+        }
+        
+        return jsonify(preview)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
