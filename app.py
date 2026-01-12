@@ -389,14 +389,27 @@ def generate_report(doxy_file, account_file, gusto_file, booking_file):
         errors.append(f"Error reading Gusto file: {str(e)}")
         gusto_df = None
     
-    # Read Booking Summary (OnceHub) - CSV or XLS
-    try:
-        booking_df = read_file_as_dataframe(booking_file)
-        if 'Booking page' not in booking_df.columns:
-            errors.append("OnceHub file missing 'Booking page' column")
-    except Exception as e:
-        errors.append(f"Error reading OnceHub file: {str(e)}")
-        booking_df = None
+    # Read Booking Summary (OnceHub) - CSV or XLS (OPTIONAL)
+    booking_df = None
+    if booking_file and booking_file.filename:
+        try:
+            booking_df = read_file_as_dataframe(booking_file)
+            # Try to find the booking page column with flexible matching
+            booking_col = None
+            for col in booking_df.columns:
+                col_lower = str(col).lower()
+                if 'booking' in col_lower or 'page' in col_lower or 'provider' in col_lower or 'name' in col_lower:
+                    booking_col = col
+                    break
+            
+            if booking_col and booking_col != 'Booking page':
+                booking_df = booking_df.rename(columns={booking_col: 'Booking page'})
+            elif 'Booking page' not in booking_df.columns:
+                # Use first column as provider name if no match found
+                booking_df = booking_df.rename(columns={booking_df.columns[0]: 'Booking page'})
+        except Exception as e:
+            # OnceHub is optional - just log and continue
+            booking_df = None
     
     # If there are critical errors, raise them
     if errors:
@@ -406,7 +419,8 @@ def generate_report(doxy_file, account_file, gusto_file, booking_file):
     doxy_visits = get_doxy_visits(doxy_df)
     doxy_providers = doxy_visits['Provider name'].tolist()
     
-    oncehub_visits = get_oncehub_visits(booking_df)
+    # OnceHub is optional
+    oncehub_visits = get_oncehub_visits(booking_df) if booking_df is not None else None
     visits_by_program = get_visits_by_program(account_content, is_csv=account_is_csv)
     gusto_hours = get_gusto_hours(gusto_df, doxy_providers)
     performance_metrics = get_doxy_performance_metrics(doxy_df)
@@ -424,7 +438,8 @@ def generate_report(doxy_file, account_file, gusto_file, booking_file):
     
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         doxy_visits.to_excel(writer, sheet_name='Doxy Visits', index=False)
-        oncehub_visits.to_excel(writer, sheet_name='OnceHub Visits', index=False)
+        if oncehub_visits is not None:
+            oncehub_visits.to_excel(writer, sheet_name='OnceHub Visits', index=False)
         visits_by_program.to_excel(writer, sheet_name='Visits by Program', index=False)
         gusto_hours.to_excel(writer, sheet_name='Gusto Hours', index=False)
         performance_metrics.to_excel(writer, sheet_name='Doxy Performance Metrics', index=False)
@@ -437,8 +452,9 @@ def generate_report(doxy_file, account_file, gusto_file, booking_file):
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
-        # Validate all files are present
-        required_files = ['doxy_file', 'account_file', 'gusto_file', 'booking_file']
+        # Validate required files are present (booking_file is optional)
+        required_files = ['doxy_file', 'account_file', 'gusto_file']
+        optional_files = ['booking_file']
         missing_files = []
         
         for file_name in required_files:
@@ -446,16 +462,24 @@ def index():
                 missing_files.append(FILE_CONFIGS[file_name]['name'])
         
         if missing_files:
-            flash(f"Missing files: {', '.join(missing_files)}", 'error')
+            flash(f"Missing required files: {', '.join(missing_files)}", 'error')
             return redirect(request.url)
         
-        # Validate each file
+        # Validate each required file
         validation_errors = []
         for file_name in required_files:
             file_obj = request.files[file_name]
             errors = validate_file(file_obj, FILE_CONFIGS[file_name])
             for error in errors:
                 validation_errors.append(f"{FILE_CONFIGS[file_name]['name']}: {error}")
+        
+        # Validate optional files only if provided
+        for file_name in optional_files:
+            if file_name in request.files and request.files[file_name].filename != '':
+                file_obj = request.files[file_name]
+                errors = validate_file(file_obj, FILE_CONFIGS[file_name])
+                for error in errors:
+                    validation_errors.append(f"{FILE_CONFIGS[file_name]['name']}: {error}")
         
         if validation_errors:
             for error in validation_errors:
@@ -465,7 +489,7 @@ def index():
         doxy_file = request.files['doxy_file']
         account_file = request.files['account_file']
         gusto_file = request.files['gusto_file']
-        booking_file = request.files['booking_file']
+        booking_file = request.files.get('booking_file') if 'booking_file' in request.files and request.files['booking_file'].filename else None
         
         try:
             # Generate the report
