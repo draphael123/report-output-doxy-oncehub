@@ -27,7 +27,7 @@ FILE_CONFIGS = {
     },
     'account_file': {
         'name': 'Account Detail Report',
-        'extensions': ['.xls', '.xlsx'],
+        'extensions': ['.xls', '.xlsx', '.csv'],
         'max_size_mb': 10
     },
     'gusto_file': {
@@ -112,28 +112,61 @@ def get_oncehub_visits(booking_df):
     return result
 
 
-def get_visits_by_program(account_content):
+def get_visits_by_program(account_content, is_csv=False):
     """Section 3: Parse AccountDetailReport and categorize visits."""
-    soup = BeautifulSoup(account_content, 'html.parser')
-    rows = soup.find_all('tr')
-    
-    data = []
-    for row in rows:
-        cells = row.find_all('td')
-        if len(cells) >= 7:
-            first_cell = cells[0]
-            if first_cell.get('style') and 'border-style:solid' in first_cell.get('style', ''):
-                status = cells[3].get_text(strip=True)
-                owner = cells[5].get_text(strip=True)
-                event_type = cells[6].get_text(strip=True)
-                
-                data.append({
-                    'Status': status,
-                    'Provider': owner,
-                    'Event Type': event_type
-                })
-    
-    df = pd.DataFrame(data)
+    if is_csv:
+        # Parse as CSV
+        df = pd.read_csv(io.StringIO(account_content))
+        # Map columns - adjust based on your CSV structure
+        # Expected columns: Status, Owner/Provider, Event Type
+        col_mapping = {}
+        for col in df.columns:
+            col_lower = col.lower()
+            if 'status' in col_lower:
+                col_mapping['Status'] = col
+            elif 'owner' in col_lower or 'provider' in col_lower:
+                col_mapping['Provider'] = col
+            elif 'event' in col_lower and 'type' in col_lower:
+                col_mapping['Event Type'] = col
+            elif 'type' in col_lower:
+                col_mapping['Event Type'] = col
+        
+        # Rename columns
+        df = df.rename(columns={v: k for k, v in col_mapping.items()})
+        
+        # Ensure required columns exist
+        if 'Status' not in df.columns:
+            df['Status'] = 'Completed'
+        if 'Provider' not in df.columns:
+            # Try to find a name-like column
+            for col in df.columns:
+                if 'name' in col.lower():
+                    df['Provider'] = df[col]
+                    break
+        if 'Event Type' not in df.columns:
+            df['Event Type'] = 'Other'
+    else:
+        # Parse as HTML (XLS files from OnceHub are actually HTML)
+        soup = BeautifulSoup(account_content, 'html.parser')
+        rows = soup.find_all('tr')
+        
+        data = []
+        for row in rows:
+            cells = row.find_all('td')
+            if len(cells) >= 7:
+                first_cell = cells[0]
+                if first_cell.get('style') and 'border-style:solid' in first_cell.get('style', ''):
+                    status = cells[3].get_text(strip=True)
+                    owner = cells[5].get_text(strip=True)
+                    event_type = cells[6].get_text(strip=True)
+                    
+                    data.append({
+                        'Status': status,
+                        'Provider': owner,
+                        'Event Type': event_type
+                    })
+        
+        df = pd.DataFrame(data)
     
     if df.empty:
         return pd.DataFrame(columns=['Provider', 'TRT', 'HRT', 'Other', 'Total'])
@@ -295,6 +328,8 @@ def generate_report(doxy_file, account_file, gusto_file, booking_file):
     
     # Read Account Detail Report (try different encodings)
     account_content = None
+    account_is_csv = account_file.filename.lower().endswith('.csv')
+    
     for encoding in ['utf-16', 'utf-8', 'latin-1', 'cp1252']:
         try:
             account_file.seek(0)
@@ -333,7 +368,7 @@ def generate_report(doxy_file, account_file, gusto_file, booking_file):
     doxy_providers = doxy_visits['Provider name'].tolist()
     
     oncehub_visits = get_oncehub_visits(booking_df)
-    visits_by_program = get_visits_by_program(account_content)
+    visits_by_program = get_visits_by_program(account_content, is_csv=account_is_csv)
     gusto_hours = get_gusto_hours(gusto_df, doxy_providers)
     performance_metrics = get_doxy_performance_metrics(doxy_df)
     hours_worked = get_hours_worked(gusto_hours, performance_metrics)
