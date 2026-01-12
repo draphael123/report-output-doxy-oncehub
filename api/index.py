@@ -17,6 +17,14 @@ app.secret_key = 'weekly-report-generator-secret-key-2026'
 # Names to exclude from all reports
 EXCLUDED_NAMES = ['daniel raphael', 'dan raphael', 'draphael']
 
+# Name mappings for Gusto (company name -> provider name)
+GUSTO_NAME_MAPPINGS = {
+    'alg care and consulting inc': 'Ashley Grout',
+    'alg care and consulting inc.': 'Ashley Grout',
+    'cch ventures, pllc': 'Catherine Herrington',
+    'cch ventures pllc': 'Catherine Herrington',
+}
+
 # File validation config
 FILE_CONFIGS = {
     'doxy_file': {
@@ -217,6 +225,15 @@ def get_gusto_hours(gusto_df, doxy_providers):
         gusto_df.columns = ['Name', 'Title', 'Manager', 'Total hours'] + list(gusto_df.columns[4:])
     
     gusto_df['Name'] = gusto_df['Name'].astype(str).str.strip().str.replace('"', '')
+    
+    # Apply name mappings (company names -> provider names)
+    def apply_name_mapping(name):
+        if pd.isna(name):
+            return name
+        name_lower = str(name).lower().strip()
+        return GUSTO_NAME_MAPPINGS.get(name_lower, name)
+    
+    gusto_df['Name'] = gusto_df['Name'].apply(apply_name_mapping)
     
     def normalize_name(name):
         if pd.isna(name):
