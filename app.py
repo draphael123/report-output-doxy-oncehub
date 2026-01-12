@@ -35,7 +35,7 @@ PROVIDERS_NA_HOURS = [
     'Doron Stember',
     'Lindsay Burden NP',
     'Terray Humphrey',
-    'Summer Kerley',
+    'Summer Denny',
 ]
 
 # Name mappings for Visits by Program (alternative names)
