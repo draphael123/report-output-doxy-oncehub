@@ -23,6 +23,9 @@ GUSTO_NAME_MAPPINGS = {
     'alg care and consulting inc.': 'Ashley Grout',
     'cch ventures, pllc': 'Catherine Herrington',
     'cch ventures pllc': 'Catherine Herrington',
+    'elizabeth gloor': 'Liz Gloor',
+    'megan ryan riffle': 'Megan Ryan-Riffle',
+    'jacquelyn sexton': 'Jacquelyn Sexton, NP',
 }
 
 # File validation config
