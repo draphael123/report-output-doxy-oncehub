@@ -356,6 +356,28 @@ def get_hours_worked(gusto_hours, visits_by_program):
     result.columns = ['Provider', 'Gusto Hours', 'TRT Visits (20 min)', 'HRT Visits (30 min)', 'Total Visits', 'Hours Worked']
     result = result.sort_values('Gusto Hours', ascending=False)
     
+    # Add N/A providers with calculated hours from visits
+    for provider_name in PROVIDERS_NA_HOURS:
+        provider_norm = normalize_name(provider_name)
+        visit_match = visits[visits['Name_norm'] == provider_norm]
+        if not visit_match.empty:
+            row = visit_match.iloc[0]
+            trt = row['TRT'] if 'TRT' in row else 0
+            hrt = row['HRT'] if 'HRT' in row else 0
+            other = row['Other'] if 'Other' in row else 0
+            total = row['Total'] if 'Total' in row else (trt + hrt + other)
+            hours_worked = round((trt * 20 + hrt * 30 + other * 20) / 60, 2)
+            
+            new_row = pd.DataFrame({
+                'Provider': [provider_name],
+                'Gusto Hours': ['N/A'],
+                'TRT Visits (20 min)': [trt],
+                'HRT Visits (30 min)': [hrt],
+                'Total Visits': [total],
+                'Hours Worked': [hours_worked]
+            })
+            result = pd.concat([result, new_row], ignore_index=True)
+    
     return result
 
 
