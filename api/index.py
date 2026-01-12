@@ -28,6 +28,14 @@ GUSTO_NAME_MAPPINGS = {
     'jacquelyn sexton': 'Jacquelyn Sexton, NP',
 }
 
+# Providers to list with N/A hours (no Gusto tracking)
+PROVIDERS_NA_HOURS = [
+    'Bill Carbonneau NP',
+    'Tzvi Doron',
+    'Doron Stember',
+    'Lindsay Burden NP',
+]
+
 # File validation config
 FILE_CONFIGS = {
     'doxy_file': {
@@ -272,6 +280,13 @@ def get_gusto_hours(gusto_df, doxy_providers):
     
     filtered = filtered.sort_values('Total hours', ascending=False)
     
+    # Add providers with N/A hours
+    na_providers = pd.DataFrame({
+        'Name': PROVIDERS_NA_HOURS,
+        'Total hours': ['N/A'] * len(PROVIDERS_NA_HOURS)
+    })
+    filtered = pd.concat([filtered, na_providers], ignore_index=True)
+    
     return filtered
 
 
@@ -317,7 +332,9 @@ def get_hours_worked(gusto_hours, visits_by_program):
         name = re.sub(r',\s*np$', '', name, flags=re.IGNORECASE)
         return name.strip()
     
-    gusto = gusto_hours.copy()
+    # Filter out N/A hours for the calculation
+    gusto = gusto_hours[gusto_hours['Total hours'] != 'N/A'].copy()
+    gusto['Total hours'] = pd.to_numeric(gusto['Total hours'], errors='coerce')
     visits = visits_by_program.copy()
     
     gusto['Name_norm'] = gusto['Name'].apply(normalize_name)
