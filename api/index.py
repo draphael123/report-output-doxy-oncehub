@@ -21,23 +21,23 @@ EXCLUDED_NAMES = ['daniel raphael', 'dan raphael', 'draphael']
 FILE_CONFIGS = {
     'doxy_file': {
         'name': 'Doxy Report',
-        'extensions': ['.csv'],
+        'extensions': ['.csv', '.xls', '.xlsx'],
         'required_columns': ['Provider name', 'Duration'],
         'max_size_mb': 10
     },
     'account_file': {
         'name': 'Account Detail Report',
-        'extensions': ['.xls', '.xlsx', '.csv'],
+        'extensions': ['.csv', '.xls', '.xlsx'],
         'max_size_mb': 10
     },
     'gusto_file': {
         'name': 'Gusto Hours',
-        'extensions': ['.csv'],
+        'extensions': ['.csv', '.xls', '.xlsx'],
         'max_size_mb': 10
     },
     'booking_file': {
         'name': 'OnceHub Booking Summary',
-        'extensions': ['.csv'],
+        'extensions': ['.csv', '.xls', '.xlsx'],
         'required_columns': ['Booking page'],
         'max_size_mb': 10
     }
@@ -311,13 +311,54 @@ def get_hours_worked(gusto_hours, performance_metrics):
     return result
 
 
+def read_file_as_dataframe(file_obj, skiprows=0):
+    """Read a file as DataFrame, handling both CSV and XLS formats."""
+    filename = file_obj.filename.lower()
+    is_excel = filename.endswith('.xls') or filename.endswith('.xlsx')
+    
+    file_obj.seek(0)
+    
+    if is_excel:
+        # Try reading as Excel first
+        try:
+            return pd.read_excel(file_obj, skiprows=skiprows)
+        except Exception:
+            # If that fails, it might be HTML disguised as XLS (OnceHub style)
+            file_obj.seek(0)
+            content = None
+            for encoding in ['utf-16', 'utf-8', 'latin-1', 'cp1252']:
+                try:
+                    file_obj.seek(0)
+                    content = file_obj.read().decode(encoding)
+                    break
+                except (UnicodeDecodeError, UnicodeError):
+                    continue
+            if content:
+                # Try to read as HTML table
+                try:
+                    tables = pd.read_html(io.StringIO(content))
+                    if tables:
+                        df = tables[0]
+                        if skiprows > 0:
+                            df = df.iloc[skiprows:]
+                            df.columns = df.iloc[0]
+                            df = df.iloc[1:].reset_index(drop=True)
+                        return df
+                except Exception:
+                    pass
+            raise ValueError("Could not read Excel file")
+    else:
+        # Read as CSV
+        return pd.read_csv(file_obj, skiprows=skiprows)
+
+
 def generate_report(doxy_file, account_file, gusto_file, booking_file):
     """Generate the complete Excel report with detailed error handling."""
     errors = []
     
-    # Read Doxy Report
+    # Read Doxy Report (CSV or XLS)
     try:
-        doxy_df = pd.read_csv(doxy_file)
+        doxy_df = read_file_as_dataframe(doxy_file)
         if 'Provider name' not in doxy_df.columns:
             errors.append("Doxy Report missing 'Provider name' column")
         if 'Duration' not in doxy_df.columns:
@@ -341,18 +382,16 @@ def generate_report(doxy_file, account_file, gusto_file, booking_file):
     if account_content is None:
         errors.append("Could not decode Account Detail Report - try a different file format")
     
-    # Read Gusto Hours (skip header rows)
+    # Read Gusto Hours (CSV or XLS, skip header rows)
     try:
-        gusto_file.seek(0)
-        gusto_df = pd.read_csv(gusto_file, skiprows=8, header=0)
+        gusto_df = read_file_as_dataframe(gusto_file, skiprows=8)
     except Exception as e:
         errors.append(f"Error reading Gusto file: {str(e)}")
         gusto_df = None
     
-    # Read Booking Summary (OnceHub)
+    # Read Booking Summary (OnceHub) - CSV or XLS
     try:
-        booking_file.seek(0)
-        booking_df = pd.read_csv(booking_file)
+        booking_df = read_file_as_dataframe(booking_file)
         if 'Booking page' not in booking_df.columns:
             errors.append("OnceHub file missing 'Booking page' column")
     except Exception as e:
