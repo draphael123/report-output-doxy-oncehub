@@ -336,7 +336,8 @@ def get_hours_worked(gusto_hours, visits_by_program):
             return ''
         name = str(name).strip().lower()
         name = re.sub(r'\s+(np|fnp-c|md|pa|llc|inc\.?|pllc)$', '', name, flags=re.IGNORECASE)
-        name = re.sub(r',\s*np$', '', name, flags=re.IGNORECASE)
+        name = re.sub(r',?\s*np$', '', name, flags=re.IGNORECASE)  # Handle ", NP" or " NP"
+        name = name.rstrip(',').strip()  # Remove any trailing commas
         return name.strip()
     
     # Filter out N/A hours for the calculation
