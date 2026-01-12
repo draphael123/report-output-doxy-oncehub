@@ -285,8 +285,10 @@ def get_doxy_performance_metrics(doxy_df):
     return metrics
 
 
-def get_hours_worked(gusto_hours, performance_metrics):
-    """Section 6: Calculate hours worked assuming all visits are 20 minutes."""
+def get_hours_worked(gusto_hours, visits_by_program):
+    """Section 6: Calculate hours worked based on visit types.
+    TRT visits = 20 minutes, HRT visits = 30 minutes.
+    """
     def normalize_name(name):
         if pd.isna(name):
             return ''
@@ -296,16 +298,25 @@ def get_hours_worked(gusto_hours, performance_metrics):
         return name.strip()
     
     gusto = gusto_hours.copy()
-    metrics = performance_metrics.copy()
+    visits = visits_by_program.copy()
     
     gusto['Name_norm'] = gusto['Name'].apply(normalize_name)
-    metrics['Name_norm'] = metrics['Provider'].apply(normalize_name)
+    visits['Name_norm'] = visits['Provider'].apply(normalize_name)
     
-    merged = pd.merge(gusto, metrics, on='Name_norm', how='inner')
-    merged['Hours Worked'] = (merged['Total Visits'] * 20 / 60).round(2)
+    merged = pd.merge(gusto, visits, on='Name_norm', how='inner')
     
-    result = merged[['Name', 'Total hours', 'Total Visits', 'Hours Worked']].copy()
-    result.columns = ['Provider', 'Gusto Hours', 'Total Visits', 'Hours Worked (20 min/visit)']
+    # Get TRT and HRT counts (default to 0 if column doesn't exist)
+    trt_visits = merged['TRT'] if 'TRT' in merged.columns else 0
+    hrt_visits = merged['HRT'] if 'HRT' in merged.columns else 0
+    other_visits = merged['Other'] if 'Other' in merged.columns else 0
+    
+    # Calculate hours worked: TRT = 20 min, HRT = 30 min, Other = 20 min
+    merged['TRT Visits'] = trt_visits
+    merged['HRT Visits'] = hrt_visits
+    merged['Hours Worked'] = ((trt_visits * 20 + hrt_visits * 30 + other_visits * 20) / 60).round(2)
+    
+    result = merged[['Name', 'Total hours', 'TRT Visits', 'HRT Visits', 'Total', 'Hours Worked']].copy()
+    result.columns = ['Provider', 'Gusto Hours', 'TRT Visits (20 min)', 'HRT Visits (30 min)', 'Total Visits', 'Hours Worked']
     result = result.sort_values('Gusto Hours', ascending=False)
     
     return result
@@ -424,7 +435,7 @@ def generate_report(doxy_file, account_file, gusto_file, booking_file):
     visits_by_program = get_visits_by_program(account_content, is_csv=account_is_csv)
     gusto_hours = get_gusto_hours(gusto_df, doxy_providers)
     performance_metrics = get_doxy_performance_metrics(doxy_df)
-    hours_worked = get_hours_worked(gusto_hours, performance_metrics)
+    hours_worked = get_hours_worked(gusto_hours, visits_by_program)
     
     # Calculate stats for response
     stats = {
