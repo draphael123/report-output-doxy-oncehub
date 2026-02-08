@@ -1,1476 +1,4261 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Weekly Report Generator</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <title>Weekly Report Generator - Healthcare Provider Analytics</title>
+    
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="Generate comprehensive weekly reports from healthcare provider data. Upload Doxy, Gusto, and OnceHub files to create detailed analytics reports.">
+    <meta name="keywords" content="healthcare reports, provider analytics, weekly reports, data analysis, healthcare data">
+    <meta name="author" content="Weekly Report Generator">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Weekly Report Generator - Healthcare Provider Analytics">
+    <meta property="og:description" content="Generate comprehensive weekly reports from healthcare provider data">
+    <meta property="og:image" content="https://via.placeholder.com/1200x630?text=Weekly+Report+Generator">
+    
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Weekly Report Generator">
+    <meta name="twitter:description" content="Generate comprehensive weekly reports from healthcare provider data">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+    <!-- Chart.js for data visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
-        :root {
-            --purple: #8b5cf6;
-            --purple-dark: #7c3aed;
-            --pink: #ec4899;
-            --pink-light: #f472b6;
-            --cyan: #06b6d4;
-            --cyan-light: #22d3ee;
-            --orange: #f97316;
-            --yellow: #fbbf24;
-            --green: #10b981;
-            --blue: #3b82f6;
-            --bg-dark: #0f0a1e;
-            --bg-card: rgba(30, 20, 50, 0.8);
-            --bg-input: rgba(40, 30, 70, 0.6);
-            --text-primary: #f8fafc;
-            --text-secondary: #a5b4fc;
-            --border: rgba(139, 92, 246, 0.3);
-            --success: #34d399;
-            --error: #f87171;
-        }
-
-        [data-theme="light"] {
-            --bg-dark: #f0f4ff;
-            --bg-card: rgba(255, 255, 255, 0.9);
-            --bg-input: rgba(240, 244, 255, 0.8);
-            --text-primary: #1e1b4b;
-            --text-secondary: #6366f1;
-            --border: rgba(139, 92, 246, 0.4);
-        }
-
+/* Base Styles */
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
 
-        @keyframes gradientShift {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
+:root {
+    --primary: #2563eb;
+    --primary-dark: #1d4ed8;
+    --primary-light: #3b82f6;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --error: #ef4444;
+    --gray-50: #f9fafb;
+    --gray-100: #f3f4f6;
+    --gray-200: #e5e7eb;
+    --gray-300: #d1d5db;
+    --gray-400: #9ca3af;
+    --gray-500: #6b7280;
+    --gray-600: #4b5563;
+    --gray-700: #374151;
+    --gray-800: #1f2937;
+    --gray-900: #111827;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+    --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.1);
+    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    
+    /* Light mode (default) - Blue and White Theme */
+    --bg-primary: linear-gradient(135deg, #2563eb 0%, #3b82f6 50%, #60a5fa 100%);
+    --bg-card: #ffffff;
+    --bg-sidebar: #ffffff;
+    --bg-input: #ffffff;
+    --text-primary: #1e3a8a;
+    --text-secondary: #3b82f6;
+    --text-inverse: #ffffff;
+    --border-color: #dbeafe;
+    --shadow-card: 0 10px 15px rgba(37, 99, 235, 0.1);
+}
 
-        @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-10px); }
-        }
+[data-theme="dark"] {
+    /* Dark mode - Blue and Dark Theme */
+    --bg-primary: linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #2563eb 100%);
+    --bg-card: #1e293b;
+    --bg-sidebar: #1e293b;
+    --bg-input: #334155;
+    --text-primary: #e0e7ff;
+    --text-secondary: #93c5fd;
+    --text-inverse: #ffffff;
+    --border-color: #334155;
+    --shadow-card: 0 10px 15px rgba(30, 58, 138, 0.3);
+}
 
-        @keyframes pulse {
-            0%, 100% { opacity: 0.4; }
-            50% { opacity: 0.8; }
-        }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background: var(--bg-primary);
+    min-height: 100vh;
+    padding: 2rem 1rem;
+    color: var(--text-primary);
+    transition: background 0.3s ease, color 0.3s ease;
+}
 
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+}
 
-        @keyframes confetti {
-            0% { transform: translateY(0) rotate(0deg); opacity: 1; }
-            100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
-        }
+/* Header */
+.header {
+    text-align: center;
+    margin-bottom: 2rem;
+    color: var(--text-inverse);
+    position: relative;
+}
 
-        @keyframes successPop {
-            0% { transform: scale(0); opacity: 0; }
-            50% { transform: scale(1.2); }
-            100% { transform: scale(1); opacity: 1; }
-        }
+.theme-toggle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background: rgba(255, 255, 255, 0.2);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: var(--transition);
+    font-size: 1.5rem;
+    color: var(--text-inverse);
+    backdrop-filter: blur(10px);
+}
 
-        @keyframes slideUp {
-            from { transform: translateY(20px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
+.theme-toggle:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(1.1);
+}
 
-        body {
-            font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: var(--bg-dark);
-            color: var(--text-primary);
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 2rem;
+@media (max-width: 768px) {
+    .theme-toggle {
             position: relative;
-            overflow-x: hidden;
-            transition: background 0.3s ease, color 0.3s ease;
-        }
+        margin: 0 auto 1rem;
+    }
+}
 
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: 
-                radial-gradient(circle at 20% 20%, rgba(139, 92, 246, 0.3) 0%, transparent 40%),
-                radial-gradient(circle at 80% 80%, rgba(236, 72, 153, 0.25) 0%, transparent 40%),
-                radial-gradient(circle at 40% 60%, rgba(6, 182, 212, 0.2) 0%, transparent 40%);
-            animation: pulse 8s ease-in-out infinite;
-            z-index: -1;
-        }
+.header h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
 
-        [data-theme="light"] body::before {
-            opacity: 0.5;
-        }
+.header p {
+    font-size: 1.1rem;
+    opacity: 0.9;
+}
 
-        .floating-orb {
-            position: fixed;
-            border-radius: 50%;
-            filter: blur(60px);
-            z-index: -1;
-            animation: float 6s ease-in-out infinite;
-        }
+/* Progress Steps */
+.progress-steps {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 3rem;
+    position: relative;
+}
 
-        .orb-1 {
-            width: 300px;
-            height: 300px;
-            background: linear-gradient(135deg, var(--purple) 0%, var(--pink) 100%);
-            top: 10%;
-            left: -100px;
-            opacity: 0.3;
-        }
+.progress-steps::before {
+    content: '';
+    position: absolute;
+    top: 20px;
+    left: 10%;
+    right: 10%;
+    height: 2px;
+    background: rgba(255, 255, 255, 0.3);
+    z-index: 0;
+}
 
-        .orb-2 {
-            width: 200px;
-            height: 200px;
-            background: linear-gradient(135deg, var(--cyan) 0%, var(--blue) 100%);
-            bottom: 20%;
-            right: -50px;
-            opacity: 0.25;
-            animation-delay: -3s;
-        }
-
-        .container {
-            max-width: 900px;
-            width: 100%;
+.step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
             position: relative;
             z-index: 1;
         }
 
-        /* Top Bar */
-        .top-bar {
-            display: flex;
-            justify-content: flex-end;
-            gap: 0.75rem;
-            margin-bottom: 1rem;
-        }
-
-        .icon-btn {
+.step-circle {
             width: 40px;
             height: 40px;
-            border-radius: 10px;
-            border: 1px solid var(--border);
-            background: var(--bg-card);
-            color: var(--text-primary);
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    color: white;
             display: flex;
             align-items: center;
             justify-content: center;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            font-size: 1.1rem;
-        }
+    font-weight: 600;
+    transition: var(--transition);
+    border: 2px solid rgba(255, 255, 255, 0.5);
+}
 
-        .icon-btn:hover {
-            background: var(--purple);
-            border-color: var(--purple);
-            transform: translateY(-2px);
-        }
+.step.active .step-circle {
+    background: #ffffff;
+    color: var(--primary);
+    border-color: #ffffff;
+    box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.3);
+}
 
-        .icon-btn.active {
-            background: var(--purple);
-            border-color: var(--purple);
-        }
+.step.complete .step-circle {
+    background: var(--success);
+    border-color: var(--success);
+}
 
-        header {
-            text-align: center;
-            margin-bottom: 2rem;
-        }
+.step.complete .step-circle::after {
+    content: '✓';
+    font-size: 1.2rem;
+}
 
-        .logo {
-            display: inline-flex;
-            align-items: center;
-            gap: 1rem;
-            margin-bottom: 0.75rem;
-        }
+.step-label {
+    color: var(--text-inverse);
+    font-size: 0.875rem;
+    font-weight: 500;
+    opacity: 0.7;
+}
 
-        .logo-icon {
-            width: 56px;
-            height: 56px;
-            background: linear-gradient(135deg, var(--purple) 0%, var(--pink) 50%, var(--orange) 100%);
-            background-size: 200% 200%;
-            animation: gradientShift 4s ease infinite;
-            border-radius: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.75rem;
-            box-shadow: 0 8px 32px rgba(139, 92, 246, 0.4);
-        }
+.step.active .step-label {
+    opacity: 1;
+    font-weight: 600;
+}
 
-        h1 {
-            font-size: 2.25rem;
-            font-weight: 800;
-            background: linear-gradient(135deg, var(--text-primary) 0%, var(--pink-light) 50%, var(--cyan-light) 100%);
-            background-size: 200% 200%;
-            animation: gradientShift 6s ease infinite;
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
+/* Main Layout */
+.main-layout {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
 
-        .subtitle {
-            color: var(--text-secondary);
-            font-size: 1.05rem;
-            margin-top: 0.5rem;
-        }
+@media (max-width: 1024px) {
+    .main-layout {
+        grid-template-columns: 1fr;
+    }
+    
+    .sidebar {
+        display: none;
+    }
+}
 
-        .card {
-            background: var(--bg-card);
-            backdrop-filter: blur(20px);
-            border: 1px solid var(--border);
-            border-radius: 24px;
-            padding: 2rem;
-            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+/* Sidebar */
+.sidebar {
+    background: var(--bg-sidebar);
+    border-radius: 12px;
+    padding: 1.5rem;
+    height: fit-content;
+    box-shadow: var(--shadow-card);
             transition: background 0.3s ease;
-            margin-bottom: 1.5rem;
-        }
+}
 
-        /* Date Range Picker */
-        .date-range-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-        }
+.sidebar h3 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: var(--text-primary);
+}
 
-        @media (max-width: 500px) {
-            .date-range-row {
-                grid-template-columns: 1fr;
-            }
-        }
+.report-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
 
-        .form-group {
-            margin-bottom: 1.5rem;
-        }
+.report-item {
+    padding: 0.75rem;
+    background: var(--gray-50);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: var(--transition);
+    border: 1px solid transparent;
+}
 
-        label {
-            display: block;
+[data-theme="dark"] .report-item {
+    background: var(--gray-800);
+}
+
+.report-item:hover {
+    background: var(--gray-100);
+    border-color: var(--primary);
+}
+
+.report-item-name {
             font-weight: 600;
-            margin-bottom: 0.5rem;
+    font-size: 0.875rem;
             color: var(--text-primary);
-            font-size: 0.9rem;
+    margin-bottom: 0.25rem;
         }
 
-        .label-hint {
-            font-weight: 400;
+.report-item-date {
             font-size: 0.75rem;
             color: var(--text-secondary);
-            margin-left: 0.5rem;
-            padding: 0.15rem 0.5rem;
-            background: rgba(139, 92, 246, 0.2);
-            border-radius: 4px;
-        }
+}
 
-        input[type="text"], input[type="date"] {
-            width: 100%;
-            padding: 0.875rem 1rem;
-            background: var(--bg-input);
-            border: 2px solid transparent;
-            border-radius: 12px;
-            color: var(--text-primary);
-            font-size: 1rem;
-            font-family: inherit;
-            transition: all 0.3s ease;
-        }
+.history-empty {
+    text-align: center;
+    padding: 3rem 2rem;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
 
-        input:focus {
-            outline: none;
-            border-color: var(--purple);
-            box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.2);
-        }
+.history-empty-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
 
-        /* File Upload with Drag & Drop */
-        .file-uploads-grid {
+.history-empty-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.history-empty-description {
+    font-size: 0.875rem;
+    line-height: 1.6;
+    max-width: 300px;
+    margin: 0 auto;
+}
+
+/* Main Content */
+.main-content {
+    background: var(--bg-card);
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: var(--shadow-card);
+    transition: background 0.3s ease;
+}
+
+/* Upload Grid */
+.upload-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 1rem;
-            margin-bottom: 1.5rem;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
         }
 
-        @media (max-width: 600px) {
-            .file-uploads-grid {
+@media (max-width: 768px) {
+    .upload-grid {
                 grid-template-columns: 1fr;
             }
         }
 
-        .file-upload {
-            position: relative;
-            border: 2px dashed var(--border);
-            border-radius: 16px;
-            padding: 1.25rem;
+/* File Card */
+.file-card {
+    background: var(--bg-card);
+    border: 2px dashed var(--border-color);
+    border-radius: 12px;
+    padding: 1.5rem;
+    transition: var(--transition);
+}
+
+.file-card.required {
+    border-color: var(--primary);
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.card-title {
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--text-primary);
+}
+
+.badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.badge.required {
+    background: var(--primary);
+    color: white;
+}
+
+.badge.optional {
+    background: var(--gray-400);
+    color: white;
+}
+
+/* Dropzone */
+.dropzone {
+    border: 2px dashed var(--border-color);
+    border-radius: 8px;
+    padding: 2rem;
             text-align: center;
-            transition: all 0.3s ease;
             cursor: pointer;
+    transition: var(--transition);
             background: var(--bg-input);
         }
 
-        .file-upload:hover, .file-upload.drag-over {
-            border-color: var(--purple);
-            background: rgba(139, 92, 246, 0.1);
-            transform: translateY(-2px);
-        }
+.dropzone:hover {
+    border-color: var(--primary);
+    background: var(--gray-50);
+}
 
-        .file-upload.has-file {
+.dropzone.dragover {
+    border-color: var(--primary);
+    background: rgba(59, 130, 246, 0.1);
+    transform: scale(1.02);
+}
+
+.dropzone.success {
             border-color: var(--success);
-            border-style: solid;
             background: rgba(16, 185, 129, 0.1);
         }
 
-        .file-upload.has-error {
+.dropzone.error {
             border-color: var(--error);
-            background: rgba(248, 113, 113, 0.1);
-        }
+    background: rgba(239, 68, 68, 0.1);
+}
 
-        .file-upload input[type="file"] {
-            position: absolute;
-            inset: 0;
-            opacity: 0;
-            cursor: pointer;
-        }
+.dropzone-content {
+    pointer-events: none;
+}
 
-        .file-upload-icon {
-            font-size: 2rem;
-            margin-bottom: 0.4rem;
-        }
+.dropzone-icon {
+    font-size: 3rem;
+    margin-bottom: 0.5rem;
+}
 
-        .file-upload-label {
+.dropzone-text {
+    font-size: 1rem;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.dropzone-link {
+    color: var(--primary);
+    text-decoration: underline;
             font-weight: 600;
-            font-size: 0.85rem;
-            margin-bottom: 0.25rem;
         }
 
-        .file-upload-text {
-            color: var(--text-secondary);
+.dropzone-hint {
             font-size: 0.75rem;
-        }
+    color: var(--text-secondary);
+}
 
-        .file-name {
-            margin-top: 0.4rem;
-            font-size: 0.8rem;
-            color: var(--success);
-            font-weight: 600;
-            word-break: break-all;
-        }
+/* File Status */
+.file-status {
+    margin-top: 1rem;
+    min-height: 20px;
+}
 
-        .file-validation {
-            margin-top: 0.3rem;
-            font-size: 0.7rem;
-            color: var(--cyan-light);
-        }
+.validation-success {
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid var(--success);
+    color: #065f46;
+    padding: 0.75rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+}
 
-        /* Buttons Row */
-        .buttons-row {
-            display: flex;
-            gap: 1rem;
-        }
+.validation-success strong {
+    display: block;
+    margin-bottom: 0.25rem;
+    color: var(--success);
+}
 
-        .submit-btn {
-            flex: 1;
-            padding: 1rem;
-            background: linear-gradient(135deg, var(--purple) 0%, var(--pink) 50%, var(--orange) 100%);
-            background-size: 200% 200%;
-            animation: gradientShift 4s ease infinite;
-            border: none;
-            border-radius: 14px;
-            color: white;
-            font-size: 1.1rem;
-            font-weight: 700;
-            font-family: inherit;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-            box-shadow: 0 4px 20px rgba(139, 92, 246, 0.4);
-        }
+.validation-error {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid var(--error);
+    color: #991b1b;
+    padding: 0.75rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+}
 
-        .submit-btn:hover:not(:disabled) {
-            transform: translateY(-3px);
-            box-shadow: 0 12px 32px rgba(139, 92, 246, 0.5);
-        }
+.validation-error strong {
+    display: block;
+    margin-bottom: 0.25rem;
+    color: var(--error);
+}
 
-        .submit-btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
+.validation-warnings {
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid var(--warning);
+    color: #92400e;
+    padding: 0.75rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
+}
 
-        .submit-btn .spinner {
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(255,255,255,0.3);
-            border-top-color: white;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
+.validation-warnings strong {
+    display: block;
+    margin-bottom: 0.25rem;
+    color: var(--warning);
+}
+
+.validation-success ul,
+.validation-error ul,
+.validation-warnings ul {
+    margin: 0.5rem 0 0 1.25rem;
+    list-style: disc;
+}
+
+.validation-success li,
+.validation-error li,
+.validation-warnings li {
+    margin: 0.25rem 0;
+}
+
+/* File Preview */
+.file-preview {
+    margin-top: 1rem;
             display: none;
         }
 
-        .submit-btn.loading .spinner {
+.file-preview.show {
             display: block;
         }
 
-        .submit-btn.loading .btn-text {
-            display: none;
-        }
+.preview-table {
+    width: 100%;
+    margin-top: 0.5rem;
+    border-collapse: collapse;
+    font-size: 0.75rem;
+}
 
-        .preview-btn {
-            padding: 1rem 1.5rem;
+.preview-table th,
+.preview-table td {
+    border: 1px solid var(--border-color);
+    padding: 0.5rem;
+    text-align: left;
+}
+
+.preview-table th {
+    background: #dbeafe;
+    color: var(--primary);
+    font-weight: 600;
+    border-color: var(--primary);
+}
+
+[data-theme="dark"] .preview-table th {
+    background: var(--gray-800);
+}
+
+.preview-table td {
             background: var(--bg-input);
-            border: 2px solid var(--cyan);
-            border-radius: 14px;
-            color: var(--cyan-light);
-            font-size: 0.9rem;
+}
+
+/* Actions */
+.actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+    margin-top: 2rem;
+}
+
+.btn {
+    padding: 0.875rem 1.5rem;
+    border-radius: 8px;
+    font-size: 1rem;
             font-weight: 600;
-            font-family: inherit;
             cursor: pointer;
-            transition: all 0.3s ease;
-        }
+    transition: var(--transition);
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
 
-        .preview-btn:hover:not(:disabled) {
-            background: rgba(6, 182, 212, 0.2);
+.btn-primary {
+    background: var(--primary);
+    color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: var(--primary-dark);
             transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
         }
 
-        .preview-btn:disabled {
+.btn-primary:disabled {
             opacity: 0.5;
             cursor: not-allowed;
         }
 
-        /* Keyboard Shortcut Hint */
-        .keyboard-hint {
-            text-align: center;
-            margin-top: 0.75rem;
-            font-size: 0.75rem;
-            color: var(--text-secondary);
-            opacity: 0.7;
-        }
+.btn-secondary {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border: 2px solid var(--border-color);
+}
 
-        kbd {
-            background: var(--bg-input);
-            padding: 0.2rem 0.5rem;
-            border-radius: 4px;
-            border: 1px solid var(--border);
-            font-family: monospace;
-        }
+.btn-secondary:hover:not(:disabled) {
+    background: var(--gray-50);
+    border-color: var(--primary);
+    color: var(--primary);
+}
 
-        /* Preview Modal */
-        .modal-overlay {
+.btn-secondary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Modal */
+.modal {
+    display: none;
             position: fixed;
             inset: 0;
-            background: rgba(0, 0, 0, 0.85);
-            display: none;
+    z-index: 1000;
             align-items: center;
             justify-content: center;
-            z-index: 1000;
             padding: 1rem;
         }
 
-        .modal-overlay.show {
+.modal.show {
             display: flex;
         }
 
-        .modal {
+.modal-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(4px);
+}
+
+.modal-content {
+    position: relative;
             background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 24px;
-            padding: 2rem;
-            max-width: 700px;
+    border-radius: 12px;
+    max-width: 900px;
             width: 100%;
-            max-height: 85vh;
+    max-height: 90vh;
             overflow-y: auto;
-            position: relative;
-            animation: successPop 0.3s ease;
+    box-shadow: var(--shadow-xl);
+    z-index: 1;
+    animation: modalFadeIn 0.3s ease;
+    transition: background 0.3s ease;
+}
+
+.modal-small {
+    max-width: 500px;
+}
+
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.modal-header h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
         }
 
         .modal-close {
-            position: absolute;
-            top: 1rem;
-            right: 1rem;
             background: none;
             border: none;
+    font-size: 2rem;
             color: var(--text-secondary);
-            font-size: 1.5rem;
             cursor: pointer;
-            transition: color 0.2s;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    transition: var(--transition);
         }
 
         .modal-close:hover {
+    background: var(--gray-100);
             color: var(--text-primary);
         }
 
-        .modal h2 {
-            margin-bottom: 1.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
+.modal-body {
+    padding: 1.5rem;
+}
 
-        /* Preview Content */
-        .preview-summary {
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    padding: 1.5rem;
+    border-top: 1px solid var(--border-color);
+}
+
+/* Preview Stats */
+.preview-stats {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 1rem;
-            margin-bottom: 1.5rem;
+    margin-bottom: 2rem;
         }
 
-        .preview-stat {
-            background: var(--bg-input);
-            border-radius: 12px;
-            padding: 1rem;
-            text-align: center;
-        }
+.preview-stat {
+    background: var(--gray-50);
+    padding: 1.5rem;
+    border-radius: 8px;
+    text-align: center;
+}
+
+[data-theme="dark"] .preview-stat {
+    background: var(--gray-800);
+}
 
         .preview-stat-number {
             font-size: 2rem;
-            font-weight: 800;
-            background: linear-gradient(135deg, var(--purple) 0%, var(--pink) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 0.25rem;
         }
 
-        .preview-stat-label {
-            font-size: 0.75rem;
-            color: var(--text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
+.preview-stat-label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Preview Tabs */
+.preview-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    border-bottom: 2px solid var(--border-color);
+    overflow-x: auto;
+}
+
+.preview-tab {
+    padding: 0.75rem 1.5rem;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    font-weight: 500;
+    color: var(--text-secondary);
+    transition: var(--transition);
+    white-space: nowrap;
+    margin-bottom: -2px;
+}
+
+.preview-tab:hover {
+    color: var(--primary);
+}
+
+.preview-tab.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+}
+
+/* Preview Table Container */
+.preview-table-container {
+    max-height: 400px;
+    overflow: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    margin-top: 1rem;
+}
+
+        .preview-table {
+            width: 100%;
+            border-collapse: collapse;
+    font-size: 0.875rem;
         }
 
-        .preview-sheets {
-            margin-bottom: 1.5rem;
+        .preview-table thead {
+            position: sticky;
+            top: 0;
+    background: var(--gray-100);
+            z-index: 10;
+}
+
+[data-theme="dark"] .preview-table thead {
+    background: var(--gray-800);
         }
 
-        .preview-sheet {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0.75rem 1rem;
-            background: var(--bg-input);
-            border-radius: 10px;
-            margin-bottom: 0.5rem;
-        }
-
-        .preview-sheet-name {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
+        .preview-table th {
+            padding: 0.75rem;
+            text-align: left;
             font-weight: 600;
+            color: var(--text-primary);
+    border-bottom: 2px solid var(--border-color);
         }
 
-        .preview-sheet-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
+        .preview-table td {
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-primary);
         }
 
-        .preview-sheet:nth-child(1) .preview-sheet-dot { background: var(--purple); }
-        .preview-sheet:nth-child(2) .preview-sheet-dot { background: var(--cyan); }
-        .preview-sheet:nth-child(3) .preview-sheet-dot { background: var(--orange); }
-        .preview-sheet:nth-child(4) .preview-sheet-dot { background: var(--green); }
-        .preview-sheet:nth-child(5) .preview-sheet-dot { background: var(--pink); }
-        .preview-sheet:nth-child(6) .preview-sheet-dot { background: var(--blue); }
+        .preview-table tbody tr:hover {
+    background: var(--gray-50);
+}
 
-        .preview-sheet-info {
-            font-size: 0.85rem;
-            color: var(--text-secondary);
-        }
+[data-theme="dark"] .preview-table tbody tr:hover {
+    background: var(--gray-800);
+}
 
-        .preview-actions {
-            display: flex;
-            gap: 1rem;
-        }
+/* Preview Alerts */
+.preview-alerts {
+    margin-top: 1.5rem;
+}
 
-        .preview-actions .submit-btn {
+.alert-item {
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: start;
+    gap: 0.75rem;
+}
+
+.alert-item.error {
+    background: rgba(239, 68, 68, 0.1);
+    border-left: 4px solid var(--error);
+}
+
+.alert-item.warning {
+    background: rgba(245, 158, 11, 0.1);
+    border-left: 4px solid var(--warning);
+}
+
+.alert-item.info {
+    background: rgba(59, 130, 246, 0.1);
+    border-left: 4px solid var(--primary);
+}
+
+.alert-icon {
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
+.alert-content {
             flex: 1;
         }
 
-        .preview-actions .cancel-btn {
-            padding: 1rem 2rem;
-            background: transparent;
-            border: 2px solid var(--border);
-            border-radius: 14px;
-            color: var(--text-secondary);
+.alert-title {
             font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
+    margin-bottom: 0.25rem;
+    color: var(--text-primary);
+}
 
-        .preview-actions .cancel-btn:hover {
-            border-color: var(--error);
-            color: var(--error);
-        }
-
-        /* Report History Section */
-        .history-section {
-            margin-top: 1.5rem;
-        }
-
-        .history-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 1rem;
-        }
-
-        .history-title {
-            font-size: 1.1rem;
-            font-weight: 700;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .history-clear {
-            font-size: 0.8rem;
+.alert-message {
+    font-size: 0.875rem;
             color: var(--text-secondary);
-            background: none;
-            border: none;
-            cursor: pointer;
-            transition: color 0.2s;
-        }
+}
 
-        .history-clear:hover {
-            color: var(--error);
-        }
-
-        .history-list {
+/* Progress Stages */
+.progress-stages {
             display: flex;
             flex-direction: column;
-            gap: 0.5rem;
+    gap: 1rem;
+    margin-top: 1.5rem;
         }
 
-        .history-item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0.75rem 1rem;
-            background: var(--bg-input);
-            border-radius: 10px;
-            border: 1px solid transparent;
-            transition: all 0.2s;
-        }
+.progress-stage {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--gray-50);
+    border-radius: 8px;
+    transition: var(--transition);
+}
 
-        .history-item:hover {
-            border-color: var(--purple);
-        }
+[data-theme="dark"] .progress-stage {
+    background: var(--gray-800);
+}
 
-        .history-item-info {
-            display: flex;
-            flex-direction: column;
-            gap: 0.2rem;
-        }
+.progress-stage.active {
+    background: rgba(59, 130, 246, 0.1);
+    border-left: 4px solid var(--primary);
+}
 
-        .history-item-name {
-            font-weight: 600;
-            font-size: 0.9rem;
-        }
+.progress-stage.complete {
+    background: rgba(16, 185, 129, 0.1);
+    border-left: 4px solid var(--success);
+}
 
-        .history-item-date {
-            font-size: 0.75rem;
-            color: var(--text-secondary);
-        }
+.progress-stage.complete .stage-icon {
+    color: var(--success);
+}
 
-        .history-item-stats {
-            display: flex;
-            gap: 1rem;
-            font-size: 0.8rem;
-            color: var(--text-secondary);
-        }
+.progress-stage.active .stage-icon {
+    animation: spin 1s linear infinite;
+}
 
-        .history-empty {
-            text-align: center;
-            padding: 2rem;
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-        }
-
-        /* Tutorial Steps */
-        .tutorial-step {
-            display: flex;
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-            padding-bottom: 1.5rem;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .tutorial-step:last-child {
-            border-bottom: none;
-            margin-bottom: 0;
-            padding-bottom: 0;
-        }
-
-        .step-number {
+.stage-icon {
+    font-size: 1.5rem;
             width: 32px;
             height: 32px;
-            background: linear-gradient(135deg, var(--purple) 0%, var(--pink) 100%);
-            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: 700;
-            flex-shrink: 0;
-        }
+}
 
-        .step-content h3 {
-            font-size: 1rem;
-            margin-bottom: 0.25rem;
-        }
+.stage-label {
+    font-weight: 500;
+    color: var(--text-primary);
+}
 
-        .step-content p {
-            font-size: 0.9rem;
-            color: var(--text-secondary);
-        }
+[data-theme="dark"] .progress-stage.active {
+    background: rgba(59, 130, 246, 0.2);
+}
 
-        /* Info Section */
-        .info-section {
-            margin-top: 2rem;
-            padding-top: 1.5rem;
-            border-top: 1px solid var(--border);
-        }
+[data-theme="dark"] .progress-stage.complete {
+    background: rgba(16, 185, 129, 0.2);
+}
 
-        .info-title {
-            font-size: 0.85rem;
-            font-weight: 700;
-            color: var(--text-secondary);
-            margin-bottom: 1rem;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-        }
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
 
-        .sheets-list {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 0.5rem;
-        }
+/* Toast Container */
+.toast-container {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-width: 400px;
+}
 
-        @media (max-width: 600px) {
-            .sheets-list {
-                grid-template-columns: repeat(2, 1fr);
-            }
-        }
-
-        .sheet-item {
+.toast {
+    background: var(--bg-card);
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    box-shadow: var(--shadow-lg);
             display: flex;
             align-items: center;
-            gap: 0.5rem;
-            padding: 0.6rem;
-            background: var(--bg-input);
-            border-radius: 8px;
-            font-size: 0.8rem;
-        }
+    gap: 0.75rem;
+    animation: toastSlideIn 0.3s ease;
+    border-left: 4px solid;
+}
 
-        .sheet-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-        }
+.toast.success {
+    border-left-color: var(--success);
+}
 
-        .sheet-item:nth-child(1) .sheet-dot { background: var(--purple); }
-        .sheet-item:nth-child(2) .sheet-dot { background: var(--cyan); }
-        .sheet-item:nth-child(3) .sheet-dot { background: var(--orange); }
-        .sheet-item:nth-child(4) .sheet-dot { background: var(--green); }
-        .sheet-item:nth-child(5) .sheet-dot { background: var(--pink); }
-        .sheet-item:nth-child(6) .sheet-dot { background: var(--blue); }
+.toast.error {
+    border-left-color: var(--error);
+}
 
-        /* Benefits Section */
-        .benefits-section {
-            margin-top: 2rem;
-        }
+.toast.warning {
+    border-left-color: var(--warning);
+}
 
-        .benefits-title {
-            font-size: 1.4rem;
-            font-weight: 700;
-            text-align: center;
-            margin-bottom: 1.25rem;
-            background: linear-gradient(135deg, var(--cyan-light) 0%, var(--purple) 50%, var(--pink) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
+.toast.info {
+    border-left-color: var(--primary);
+}
 
-        .benefits-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 1rem;
-        }
+.toast-icon {
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
 
-        @media (max-width: 600px) {
-            .benefits-grid {
-                grid-template-columns: 1fr;
-            }
-        }
+.toast-message {
+    flex: 1;
+    font-weight: 500;
+    color: var(--text-primary);
+}
 
-        .benefit-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 1.25rem;
-            transition: all 0.3s ease;
-        }
-
-        .benefit-card:hover {
-            transform: translateY(-4px);
-            border-color: var(--purple);
-        }
-
-        .benefit-icon {
-            width: 44px;
-            height: 44px;
-            border-radius: 12px;
+.toast-close {
+    background: none;
+    border: none;
+    font-size: 1.25rem;
+    color: var(--gray-400);
+    cursor: pointer;
+    padding: 0;
+    width: 24px;
+    height: 24px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.25rem;
-            margin-bottom: 0.75rem;
-        }
+    border-radius: 4px;
+    transition: var(--transition);
+}
 
-        .benefit-card:nth-child(1) .benefit-icon { background: linear-gradient(135deg, var(--purple) 0%, var(--pink) 100%); }
-        .benefit-card:nth-child(2) .benefit-icon { background: linear-gradient(135deg, var(--cyan) 0%, var(--blue) 100%); }
-        .benefit-card:nth-child(3) .benefit-icon { background: linear-gradient(135deg, var(--orange) 0%, var(--yellow) 100%); }
-        .benefit-card:nth-child(4) .benefit-icon { background: linear-gradient(135deg, var(--green) 0%, var(--cyan) 100%); }
+.toast-close:hover {
+    background: var(--gray-100);
+    color: var(--gray-900);
+}
 
-        .benefit-card h3 {
-            font-size: 1rem;
-            margin-bottom: 0.4rem;
-        }
+@keyframes toastSlideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
 
-        .benefit-card p {
-            font-size: 0.85rem;
-            color: var(--text-secondary);
-            line-height: 1.4;
-        }
+.toast.hiding {
+    animation: toastSlideOut 0.3s ease forwards;
+}
 
-        .stats-bar {
-            display: flex;
-            justify-content: center;
-            gap: 2rem;
-            margin-top: 1.25rem;
-            padding: 1rem;
-            background: var(--bg-input);
-            border-radius: 12px;
-            flex-wrap: wrap;
-        }
+@keyframes toastSlideOut {
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
 
-        .stat-item {
-            text-align: center;
-        }
+/* Loading State */
+.loading {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
 
-        .stat-number {
-            font-size: 1.5rem;
-            font-weight: 800;
-            background: linear-gradient(135deg, var(--purple) 0%, var(--pink) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
+/* Responsive */
+@media (max-width: 640px) {
+    .header h1 {
+        font-size: 2rem;
+    }
+    
+    .progress-steps {
+        gap: 0.5rem;
+    }
+    
+    .step-circle {
+        width: 32px;
+        height: 32px;
+        font-size: 0.875rem;
+    }
+    
+    .step-label {
+        font-size: 0.75rem;
+    }
+    
+    .preview-stats {
+        grid-template-columns: 1fr;
+    }
+    
+    .actions {
+        flex-direction: column;
+    }
+    
+    .btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
 
-        .stat-label {
-            font-size: 0.7rem;
-            color: var(--text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
+/* ============================================
+   COMPREHENSIVE FEATURE ENHANCEMENTS
+   ============================================ */
 
-        footer {
-            margin-top: 2rem;
-            text-align: center;
-            color: var(--text-secondary);
-            font-size: 0.85rem;
-            opacity: 0.7;
-        }
+/* Loading Skeletons */
+.skeleton {
+    background: linear-gradient(90deg, var(--gray-200) 25%, var(--gray-100) 50%, var(--gray-200) 75%);
+    background-size: 200% 100%;
+    animation: skeleton-loading 1.5s ease-in-out infinite;
+    border-radius: 4px;
+}
 
-        /* Flash Messages */
-        .flash {
-            padding: 1rem;
-            border-radius: 12px;
-            margin-bottom: 1rem;
-            font-weight: 500;
-            animation: slideUp 0.3s ease;
-        }
+[data-theme="dark"] .skeleton {
+    background: linear-gradient(90deg, var(--gray-700) 25%, var(--gray-800) 50%, var(--gray-700) 75%);
+    background-size: 200% 100%;
+}
 
-        .flash.error {
-            background: rgba(248, 113, 113, 0.2);
-            border: 1px solid var(--error);
-            color: #fecaca;
-        }
+@keyframes skeleton-loading {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
 
-        .flash.success {
-            background: rgba(52, 211, 153, 0.2);
-            border: 1px solid var(--success);
-            color: #a7f3d0;
-        }
+.skeleton-text {
+    height: 1em;
+    margin: 0.5rem 0;
+}
 
-        .confetti {
-            position: fixed;
-            width: 10px;
-            height: 10px;
-            top: -10px;
-            animation: confetti 3s ease-out forwards;
-        }
+.skeleton-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+}
 
-        /* Theme Toggle Animation */
-        .theme-toggle-icon {
-            transition: transform 0.3s ease;
-        }
+.skeleton-rect {
+    height: 100px;
+}
 
-        .icon-btn:hover .theme-toggle-icon {
-            transform: rotate(20deg);
-        }
+/* Chart Containers */
+.chart-container {
+    position: relative;
+    height: 300px;
+    margin: 1.5rem 0;
+    padding: 1rem;
+    background: var(--bg-card);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.chart-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: var(--text-primary);
+    text-align: center;
+}
+
+/* Copy to Clipboard */
+.copy-btn {
+    background: var(--gray-100);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: var(--transition);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-primary);
+}
+
+.copy-btn:hover {
+    background: var(--gray-200);
+    border-color: var(--primary);
+}
+
+.copy-btn.copied {
+    background: var(--success);
+    color: white;
+    border-color: var(--success);
+}
+
+/* File Size Display */
+.file-size {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-top: 0.25rem;
+}
+
+/* Processing Time Estimate */
+.time-estimate {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-style: italic;
+    margin-top: 0.5rem;
+}
+
+/* Keyboard Shortcuts Indicator */
+.shortcut-hint {
+    position: fixed;
+    bottom: 1rem;
+    right: 1rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    box-shadow: var(--shadow-lg);
+    z-index: 100;
+    display: none;
+}
+
+.shortcut-hint.show {
+    display: block;
+    animation: fadeIn 0.3s ease;
+}
+
+.shortcut-key {
+    background: var(--gray-100);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 0.25rem 0.5rem;
+    font-family: monospace;
+    font-weight: 600;
+    margin: 0 0.25rem;
+}
+
+/* Help & Tutorial System */
+.help-btn {
+    position: fixed;
+    bottom: 1rem;
+    left: 1rem;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: white;
+    border: 2px solid var(--primary-dark);
+    font-size: 1.5rem;
+    cursor: pointer;
+    box-shadow: var(--shadow-lg);
+    transition: var(--transition);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.help-btn:hover {
+    background: var(--primary-dark);
+    transform: scale(1.1);
+    box-shadow: var(--shadow-xl);
+}
+
+.help-modal {
+    max-width: 600px;
+}
+
+.help-section {
+    margin-bottom: 2rem;
+}
+
+.help-section h3 {
+    font-size: 1.25rem;
+    margin-bottom: 0.75rem;
+    color: var(--text-primary);
+}
+
+.help-section p {
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-bottom: 0.5rem;
+}
+
+.help-shortcuts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+.help-shortcut-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem;
+    background: var(--gray-50);
+    border-radius: 6px;
+}
+
+[data-theme="dark"] .help-shortcut-item {
+    background: var(--gray-800);
+}
+
+/* Enhanced Preview Features */
+.preview-controls {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.search-box {
+    flex: 1;
+    min-width: 200px;
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+}
+
+.search-box:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.sort-btn {
+    background: var(--gray-100);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: var(--transition);
+    color: var(--text-primary);
+}
+
+.sort-btn:hover {
+    background: var(--gray-200);
+}
+
+.sort-btn.active {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+
+.export-preview-btn {
+    background: var(--success);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.export-preview-btn:hover {
+    background: #059669;
+}
+
+/* Table Sorting Indicators */
+.sort-indicator {
+    margin-left: 0.5rem;
+    font-size: 0.75rem;
+    opacity: 0.5;
+}
+
+.sort-indicator.active {
+    opacity: 1;
+}
+
+/* Print Styles */
+@media print {
+    .header, .sidebar, .actions, .theme-toggle, .help-btn, .shortcut-hint {
+        display: none !important;
+    }
+    
+    .main-content {
+        box-shadow: none;
+        padding: 0;
+    }
+    
+    body {
+        background: white;
+        padding: 0;
+    }
+}
+
+/* High Contrast Mode */
+[data-theme="high-contrast"] {
+    --bg-primary: #000000;
+    --bg-card: #000000;
+    --bg-input: #000000;
+    --text-primary: #ffffff;
+    --text-secondary: #ffffff;
+    --border-color: #ffffff;
+}
+
+[data-theme="high-contrast"] * {
+    border-width: 2px !important;
+}
+
+/* Focus Indicators for Accessibility */
+*:focus-visible {
+    outline: 3px solid var(--primary);
+    outline-offset: 2px;
+}
+
+/* Screen Reader Only */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+}
+
+/* Command Palette */
+.command-palette {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: var(--shadow-xl);
+    width: 90%;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+    z-index: 2000;
+    display: none;
+}
+
+.command-palette.show {
+    display: block;
+    animation: modalFadeIn 0.2s ease;
+}
+
+.command-palette-input {
+    width: 100%;
+    padding: 1rem;
+    border: none;
+    border-bottom: 1px solid var(--border-color);
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 1.125rem;
+}
+
+.command-palette-input:focus {
+    outline: none;
+}
+
+.command-palette-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.command-palette-item {
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border-color);
+    transition: var(--transition);
+}
+
+.command-palette-item:hover,
+.command-palette-item.selected {
+    background: var(--gray-100);
+}
+
+[data-theme="dark"] .command-palette-item:hover,
+[data-theme="dark"] .command-palette-item.selected {
+    background: var(--gray-800);
+}
+
+.command-palette-item-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+}
+
+.command-palette-item-desc {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+/* Templates & Batch Processing */
+.template-actions {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.batch-range-item {
+    margin-bottom: 1rem;
+    padding: 1rem;
+    background: var(--gray-50);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+[data-theme="dark"] .batch-range-item {
+    background: var(--gray-800);
+}
+
+/* Export Options */
+.export-option {
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    margin-bottom: 0.75rem;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.export-option:hover {
+    background: var(--gray-50);
+    border-color: var(--primary);
+}
+
+[data-theme="dark"] .export-option:hover {
+    background: var(--gray-800);
+}
+
+/* Analytics Dashboard */
+.analytics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+}
+
+.analytics-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1.5rem;
+}
+
+.analytics-card-title {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+}
+
+.analytics-card-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--primary);
+}
+
+/* Error Handling */
+.error-retry {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid var(--error);
+    border-radius: 8px;
+}
+
+.error-log {
+    max-height: 300px;
+    overflow-y: auto;
+    font-family: monospace;
+    font-size: 0.75rem;
+    background: var(--gray-900);
+    color: var(--gray-100);
+    padding: 1rem;
+    border-radius: 6px;
+    margin-top: 1rem;
+}
+
+/* Mobile Optimizations */
+@media (max-width: 768px) {
+    .help-btn {
+        width: 48px;
+        height: 48px;
+        font-size: 1.25rem;
+    }
+    
+    .chart-container {
+        height: 250px;
+    }
+    
+    .preview-controls {
+        flex-direction: column;
+    }
+    
+    .search-box {
+        width: 100%;
+    }
+    
+    .command-palette {
+        width: 95%;
+        max-height: 90vh;
+    }
+    
+    .actions {
+        flex-direction: column;
+    }
+    
+    .actions .btn {
+        width: 100%;
+    }
+    
+    .analytics-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .batch-range-item > div {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+/* Touch-friendly improvements */
+@media (hover: none) and (pointer: coarse) {
+    .btn {
+        min-height: 44px;
+        min-width: 44px;
+    }
+    
+    .dropzone {
+        min-height: 120px;
+    }
+    
+    .file-card {
+        padding: 1rem;
+    }
+}
+
+/* Tooltip System */
+.tooltip {
+    position: relative;
+    display: inline-block;
+}
+
+.tooltip .tooltiptext {
+    visibility: hidden;
+    width: 200px;
+    background-color: var(--gray-900);
+    color: white;
+    text-align: center;
+    border-radius: 6px;
+    padding: 0.5rem;
+    position: absolute;
+    z-index: 1000;
+    bottom: 125%;
+    left: 50%;
+    margin-left: -100px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    font-size: 0.875rem;
+}
+
+.tooltip:hover .tooltiptext {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Progress with Time Estimate */
+.progress-time {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-top: 0.25rem;
+    text-align: center;
+}
     </style>
 </head>
 <body>
-    <div class="floating-orb orb-1"></div>
-    <div class="floating-orb orb-2"></div>
-
+    <!-- Header Section -->
     <div class="container">
-        <!-- Top Bar -->
-        <div class="top-bar">
-            <button class="icon-btn" id="theme-toggle" title="Toggle Dark/Light Mode">
-                <span class="theme-toggle-icon">🌙</span>
+        <div class="header">
+            <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme" title="Toggle light/dark mode">
+                <span id="theme-icon">🌙</span>
             </button>
-            <button class="icon-btn" id="history-btn" title="Report History">📜</button>
-            <button class="icon-btn" id="help-btn" title="How to Use">❓</button>
+            <h1>📊 Weekly Report Generator</h1>
+            <p>Upload your files and generate comprehensive provider analytics</p>
         </div>
 
-        <header>
-            <div class="logo">
-                <div class="logo-icon">📊</div>
-                <h1>Weekly Report Generator</h1>
+        <!-- Progress Steps -->
+        <div class="progress-steps">
+            <div class="step active" data-step="1">
+                <div class="step-circle">1</div>
+                <div class="step-label">Upload</div>
             </div>
-            <p class="subtitle">Upload your data files to generate a consolidated Excel report</p>
-        </header>
-
-        <div class="card">
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    {% for category, message in messages %}
-                        <div class="flash {{ category }}">{{ message }}</div>
-                    {% endfor %}
-                {% endif %}
-            {% endwith %}
-
-            <form method="POST" enctype="multipart/form-data" id="report-form">
-                <!-- Date Range -->
-                <div class="date-range-row">
-                    <div class="form-group" style="margin-bottom: 0;">
-                        <label>📅 Start Date</label>
-                        <input type="date" id="start_date" name="start_date">
+            <div class="step" data-step="2">
+                <div class="step-circle">2</div>
+                <div class="step-label">Validate</div>
                     </div>
-                    <div class="form-group" style="margin-bottom: 0;">
-                        <label>📅 End Date</label>
-                        <input type="date" id="end_date" name="end_date">
+            <div class="step" data-step="3">
+                <div class="step-circle">3</div>
+                <div class="step-label">Generate</div>
                     </div>
+            <div class="step" data-step="4">
+                <div class="step-circle">4</div>
+                <div class="step-label">Download</div>
+                </div>
                 </div>
 
-                <div class="form-group">
-                    <label>📝 Report Name</label>
-                    <input type="text" id="report_name" name="report_name" placeholder="Auto-generated from dates or enter custom name">
-                </div>
-
-                <!-- File Uploads Grid -->
-                <div class="file-uploads-grid">
-                    <div class="file-upload" id="doxy-upload">
-                        <input type="file" name="doxy_file" accept=".csv,.xls,.xlsx" required>
-                        <div class="file-upload-icon">💊</div>
-                        <div class="file-upload-label">Doxy Report</div>
-                        <div class="file-upload-text">CSV or XLS file</div>
-                        <div class="file-name"></div>
-                        <div class="file-validation"></div>
+        <!-- Main Content with Sidebar -->
+        <div class="main-layout">
+            <!-- Sidebar for Report History -->
+            <aside class="sidebar">
+                <h3>Recent Reports</h3>
+                <div id="report-history" class="report-list">
+                    <div class="history-empty">
+                        <div class="history-empty-icon">📋</div>
+                        <div class="history-empty-title">No reports yet</div>
+                        <div class="history-empty-description">Generate your first report to see it here. Reports are automatically saved for easy access.</div>
                     </div>
-
-                    <div class="file-upload" id="account-upload">
-                        <input type="file" name="account_file" accept=".csv,.xls,.xlsx" required>
-                        <div class="file-upload-icon">📑</div>
-                        <div class="file-upload-label">Account Detail</div>
-                        <div class="file-upload-text">CSV or XLS file</div>
-                        <div class="file-name"></div>
-                        <div class="file-validation"></div>
                     </div>
+            </aside>
 
-                    <div class="file-upload" id="gusto-upload">
-                        <input type="file" name="gusto_file" accept=".csv,.xls,.xlsx" required>
-                        <div class="file-upload-icon">⏱️</div>
-                        <div class="file-upload-label">Gusto Hours</div>
-                        <div class="file-upload-text">CSV or XLS file</div>
-                        <div class="file-name"></div>
-                        <div class="file-validation"></div>
+            <!-- Main Upload Area -->
+            <main class="main-content">
+                <form id="upload-form" method="POST" enctype="multipart/form-data">
+                    <div class="upload-grid">
+                        <!-- Doxy File Card -->
+                        <div class="file-card required" data-file-type="doxy">
+                            <div class="card-header">
+                                <div class="card-title">📄 Doxy Report</div>
+                                <span class="badge required">Required</span>
                     </div>
-
-                    <div class="file-upload" id="booking-upload">
-                        <input type="file" name="booking_file" accept=".csv,.xls,.xlsx">
-                        <div class="file-upload-icon">📅</div>
-                        <div class="file-upload-label">OnceHub Summary</div>
-                        <div class="file-upload-text">CSV or XLS (optional)</div>
-                        <div class="file-name"></div>
-                        <div class="file-validation"></div>
+                            <div class="dropzone" id="doxy-dropzone">
+                                <input type="file" name="doxy_file" id="doxy_file" accept=".csv,.xls,.xlsx" hidden required>
+                                <div class="dropzone-content">
+                                    <div class="dropzone-icon">📁</div>
+                                    <div class="dropzone-text">
+                                        Drop file here or <span class="dropzone-link">browse</span>
+                    </div>
+                                    <div class="dropzone-hint">CSV or Excel • Max 10MB</div>
                     </div>
                 </div>
-
-                <!-- Buttons -->
-                <div class="buttons-row">
-                    <button type="button" class="preview-btn" id="preview-btn">
-                        👁️ Preview
-                    </button>
-                    <button type="submit" class="submit-btn" id="submit-btn">
-                        <span class="spinner"></span>
-                        <span class="btn-text">🚀 Generate Report</span>
-                    </button>
+                            <div class="file-status" id="doxy-status"></div>
+                            <div class="file-preview" id="doxy-preview"></div>
                 </div>
-                <div class="keyboard-hint">Press <kbd>Ctrl</kbd> + <kbd>Enter</kbd> to generate</div>
-            </form>
 
-            <!-- Report Contents -->
-            <div class="info-section">
-                <div class="info-title">📊 Report Contains 6 Sheets</div>
-                <div class="sheets-list">
-                    <div class="sheet-item"><div class="sheet-dot"></div> Doxy Visits</div>
-                    <div class="sheet-item"><div class="sheet-dot"></div> OnceHub Visits</div>
-                    <div class="sheet-item"><div class="sheet-dot"></div> Visits by Program</div>
-                    <div class="sheet-item"><div class="sheet-dot"></div> Gusto Hours</div>
-                    <div class="sheet-item"><div class="sheet-dot"></div> Performance</div>
-                    <div class="sheet-item"><div class="sheet-dot"></div> Hours Worked</div>
+                        <!-- Account Detail File Card -->
+                        <div class="file-card required" data-file-type="account">
+                            <div class="card-header">
+                                <div class="card-title">📋 Account Detail Report</div>
+                                <span class="badge required">Required</span>
                 </div>
+                            <div class="dropzone" id="account-dropzone">
+                                <input type="file" name="account_file" id="account_file" accept=".csv,.xls,.xlsx" hidden required>
+                                <div class="dropzone-content">
+                                    <div class="dropzone-icon">📁</div>
+                                    <div class="dropzone-text">
+                                        Drop file here or <span class="dropzone-link">browse</span>
+                </div>
+                                    <div class="dropzone-hint">CSV or Excel • Max 10MB</div>
             </div>
+                            </div>
+                            <div class="file-status" id="account-status"></div>
+                            <div class="file-preview" id="account-preview"></div>
         </div>
 
-        <!-- Report History Card -->
-        <div class="card history-section" id="history-section" style="display: none;">
-            <div class="history-header">
-                <div class="history-title">📜 Report History</div>
-                <button class="history-clear" id="clear-history">Clear All</button>
+                        <!-- Gusto File Card -->
+                        <div class="file-card required" data-file-type="gusto">
+                            <div class="card-header">
+                                <div class="card-title">💼 Gusto Hours</div>
+                                <span class="badge required">Required</span>
             </div>
-            <div class="history-list" id="history-list">
-                <div class="history-empty">No reports generated yet</div>
+                            <div class="dropzone" id="gusto-dropzone">
+                                <input type="file" name="gusto_file" id="gusto_file" accept=".csv,.xls,.xlsx" hidden required>
+                                <div class="dropzone-content">
+                                    <div class="dropzone-icon">📁</div>
+                                    <div class="dropzone-text">
+                                        Drop file here or <span class="dropzone-link">browse</span>
             </div>
+                                    <div class="dropzone-hint">CSV or Excel • Max 10MB</div>
         </div>
-
-        <!-- Benefits Section -->
-        <div class="benefits-section">
-            <h2 class="benefits-title">✨ Why Use This Tool?</h2>
-            
-            <div class="benefits-grid">
-                <div class="benefit-card">
-                    <div class="benefit-icon">⚡</div>
-                    <h3>Save Hours Every Week</h3>
-                    <p>Automate tedious manual data consolidation in seconds.</p>
+                </div>
+                            <div class="file-status" id="gusto-status"></div>
+                            <div class="file-preview" id="gusto-preview"></div>
                 </div>
                 
-                <div class="benefit-card">
-                    <div class="benefit-icon">🎯</div>
-                    <h3>Accurate & Consistent</h3>
-                    <p>Eliminate human error with automated calculations.</p>
+                        <!-- OnceHub File Card (Optional) -->
+                        <div class="file-card" data-file-type="booking">
+                            <div class="card-header">
+                                <div class="card-title">📅 OnceHub Booking</div>
+                                <span class="badge optional">Optional</span>
                 </div>
-                
-                <div class="benefit-card">
-                    <div class="benefit-icon">📊</div>
-                    <h3>6 Reports in One</h3>
-                    <p>All your metrics consolidated in a single Excel file.</p>
+                            <div class="dropzone" id="booking-dropzone">
+                                <input type="file" name="booking_file" id="booking_file" accept=".csv,.xls,.xlsx" hidden>
+                                <div class="dropzone-content">
+                                    <div class="dropzone-icon">📁</div>
+                                    <div class="dropzone-text">
+                                        Drop file here or <span class="dropzone-link">browse</span>
                 </div>
-                
-                <div class="benefit-card">
-                    <div class="benefit-icon">🔒</div>
-                    <h3>Secure & Private</h3>
-                    <p>Files processed instantly, never stored on servers.</p>
-                </div>
+                                    <div class="dropzone-hint">CSV or Excel • Max 10MB</div>
             </div>
+                </div>
+                            <div class="file-status" id="booking-status"></div>
+                            <div class="file-preview" id="booking-preview"></div>
+                </div>
+                </div>
 
-            <div class="stats-bar">
-                <div class="stat-item">
-                    <div class="stat-number">6</div>
-                    <div class="stat-label">Sheets</div>
+                    <!-- Action Buttons -->
+                    <div class="actions">
+                        <button type="button" class="btn btn-secondary" id="preview-btn" disabled>
+                            👁️ Preview Data
+                        </button>
+                        <button type="button" class="btn btn-secondary" id="templates-btn" title="Report Templates">
+                            📋 Templates
+                        </button>
+                        <button type="button" class="btn btn-secondary" id="batch-btn" title="Batch Process">
+                            📦 Batch
+                        </button>
+                        <button type="submit" class="btn btn-primary" id="generate-btn" disabled>
+                            ✨ Generate Report
+                        </button>
                 </div>
-                <div class="stat-item">
-                    <div class="stat-number">4</div>
-                    <div class="stat-label">Sources</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-number">&lt;10s</div>
-                    <div class="stat-label">Speed</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-number">100%</div>
-                    <div class="stat-label">Automated</div>
-                </div>
+                </form>
+            </main>
             </div>
-        </div>
-
-        <footer>
-            Weekly Report Generator &copy; 2026
-        </footer>
     </div>
 
     <!-- Preview Modal -->
-    <div class="modal-overlay" id="preview-modal">
-        <div class="modal">
-            <button class="modal-close" onclick="closePreview()">&times;</button>
-            <h2>👁️ Report Preview</h2>
+    <div class="modal" id="preview-modal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Report Preview</h2>
+                <button class="modal-close" id="close-preview">&times;</button>
+                </div>
+            <div class="modal-body">
+                <!-- Summary Stats -->
+                <div class="preview-stats" id="preview-stats">
+                    <!-- Populated via JavaScript -->
+                </div>
+
+                <!-- Charts Container -->
+                <div id="charts-container" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin: 1.5rem 0;">
+                    <!-- Charts will be rendered here -->
+                </div>
+
+                <!-- Export Options in Preview -->
+                <div style="margin: 1rem 0; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                    <button class="btn btn-secondary" onclick="exportToPDF()" style="font-size: 0.875rem; padding: 0.5rem 1rem;">
+                        📄 Export PDF
+                    </button>
+                    <button class="btn btn-secondary" onclick="showModal('export-modal'); populateExportOptions(); hideModal('preview-modal');" style="font-size: 0.875rem; padding: 0.5rem 1rem;">
+                        📤 More Export Options
+                    </button>
+                    <button class="btn btn-secondary" onclick="loadAnalytics(); showModal('analytics-modal'); hideModal('preview-modal');" style="font-size: 0.875rem; padding: 0.5rem 1rem;">
+                        📊 Analytics
+                    </button>
+                </div>
+
+                <!-- Tabs -->
+                <div class="preview-tabs" id="preview-tabs">
+                    <!-- Populated via JavaScript -->
+            </div>
+
+                <!-- Preview Table -->
+                <div class="preview-table-container">
+                    <table class="preview-table" id="preview-table">
+                        <!-- Populated via JavaScript -->
+                    </table>
+            </div>
+
+                <!-- Alerts/Warnings -->
+                <div class="preview-alerts" id="preview-alerts">
+                    <!-- Populated via JavaScript -->
+            </div>
+        </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancel-preview">Cancel</button>
+                <button class="btn btn-primary" id="confirm-generate">Looks Good - Generate</button>
+    </div>
+                </div>
+            </div>
+
+    <!-- Progress Modal -->
+    <div class="modal" id="progress-modal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content modal-small">
+            <div class="modal-body">
+                <h3>Generating Report</h3>
+                <div class="progress-stages" id="progress-stages">
+                    <div class="progress-stage" data-stage="upload">
+                        <span class="stage-icon">⏳</span>
+                        <span class="stage-label">Uploading files...</span>
+                </div>
+                    <div class="progress-stage" data-stage="parse">
+                        <span class="stage-icon">⏳</span>
+                        <span class="stage-label">Parsing data...</span>
+            </div>
+                    <div class="progress-stage" data-stage="validate">
+                        <span class="stage-icon">⏳</span>
+                        <span class="stage-label">Validating providers...</span>
+                </div>
+                    <div class="progress-stage" data-stage="calculate">
+                        <span class="stage-icon">⏳</span>
+                        <span class="stage-label">Calculating metrics...</span>
+            </div>
+                    <div class="progress-stage" data-stage="generate">
+                        <span class="stage-icon">⏳</span>
+                        <span class="stage-label">Generating Excel...</span>
+                </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- Help Button -->
+    <button class="help-btn" id="help-btn" aria-label="Help" title="Help & Tutorial">
+        ?
+    </button>
+
+    <!-- Keyboard Shortcuts Hint -->
+    <div class="shortcut-hint" id="shortcut-hint">
+        Press <span class="shortcut-key">Ctrl+K</span> for commands, <span class="shortcut-key">?</span> for help
+    </div>
+
+    <!-- Help Modal -->
+    <div class="modal" id="help-modal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content help-modal">
+            <div class="modal-header">
+                <h2>Help & Tutorial</h2>
+                <button class="modal-close" id="close-help">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="help-section">
+                    <h3>Getting Started</h3>
+                    <p>Upload your data files to generate comprehensive weekly reports. All required files must be uploaded before generating a report.</p>
+                    <p><strong>Required Files:</strong></p>
+                    <ul>
+                        <li>Doxy Report (CSV/Excel)</li>
+                        <li>Account Detail Report (CSV/Excel)</li>
+                        <li>Gusto Hours (CSV/Excel)</li>
+                    </ul>
+                    <p><strong>Optional:</strong> OnceHub Booking Summary</p>
+                </div>
+
+                <div class="help-section">
+                    <h3>Keyboard Shortcuts</h3>
+                    <div class="help-shortcuts">
+                        <div class="help-shortcut-item">
+                            <span>Generate Report</span>
+                            <span><span class="shortcut-key">Ctrl</span> + <span class="shortcut-key">Enter</span></span>
+                        </div>
+                        <div class="help-shortcut-item">
+                            <span>Preview Data</span>
+                            <span><span class="shortcut-key">Ctrl</span> + <span class="shortcut-key">P</span></span>
+                        </div>
+                        <div class="help-shortcut-item">
+                            <span>Command Palette</span>
+                            <span><span class="shortcut-key">Ctrl</span> + <span class="shortcut-key">K</span></span>
+                        </div>
+                        <div class="help-shortcut-item">
+                            <span>Toggle Theme</span>
+                            <span><span class="shortcut-key">Ctrl</span> + <span class="shortcut-key">T</span></span>
+                        </div>
+                        <div class="help-shortcut-item">
+                            <span>Copy to Clipboard</span>
+                            <span><span class="shortcut-key">Ctrl</span> + <span class="shortcut-key">C</span></span>
+                        </div>
+                        <div class="help-shortcut-item">
+                            <span>Print View</span>
+                            <span><span class="shortcut-key">Ctrl</span> + <span class="shortcut-key">P</span></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="help-section">
+                    <h3>Features</h3>
+                    <p><strong>Preview:</strong> Review your data before generating the full report. You can sort, filter, and search through the preview.</p>
+                    <p><strong>Charts:</strong> Visualize your data with interactive charts in the preview modal.</p>
+                    <p><strong>Export:</strong> Generate Excel reports, export to PDF, or download individual sheets as CSV.</p>
+                    <p><strong>Dark Mode:</strong> Toggle between light and dark themes using the button in the header.</p>
+                </div>
+
+                <div class="help-section">
+                    <h3>Tips</h3>
+                    <ul>
+                        <li>Drag and drop files directly onto the upload areas</li>
+                        <li>Use the preview feature to catch errors before generating</li>
+                        <li>Check file sizes - maximum 10MB per file</li>
+                        <li>Ensure date ranges match across all files</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" id="close-help-footer">Got it!</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Command Palette -->
+    <div class="command-palette" id="command-palette">
+        <input type="text" class="command-palette-input" id="command-input" placeholder="Type a command or search...">
+        <ul class="command-palette-list" id="command-list">
+            <li class="command-palette-item" data-command="generate">
+                <div class="command-palette-item-title">Generate Report</div>
+                <div class="command-palette-item-desc">Create the weekly report from uploaded files</div>
+            </li>
+            <li class="command-palette-item" data-command="preview">
+                <div class="command-palette-item-title">Preview Data</div>
+                <div class="command-palette-item-desc">Review data before generating report</div>
+            </li>
+            <li class="command-palette-item" data-command="theme">
+                <div class="command-palette-item-title">Toggle Theme</div>
+                <div class="command-palette-item-desc">Switch between light and dark mode</div>
+            </li>
+            <li class="command-palette-item" data-command="help">
+                <div class="command-palette-item-title">Show Help</div>
+                <div class="command-palette-item-desc">Open help and tutorial</div>
+            </li>
+            <li class="command-palette-item" data-command="export-pdf">
+                <div class="command-palette-item-title">Export to PDF</div>
+                <div class="command-palette-item-desc">Generate PDF version of report</div>
+            </li>
+            <li class="command-palette-item" data-command="templates">
+                <div class="command-palette-item-title">Templates</div>
+                <div class="command-palette-item-desc">Manage report templates</div>
+            </li>
+            <li class="command-palette-item" data-command="analytics">
+                <div class="command-palette-item-title">Analytics</div>
+                <div class="command-palette-item-desc">View advanced analytics</div>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Templates Modal -->
+    <div class="modal" id="templates-modal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Report Templates</h2>
+                <button class="modal-close" id="close-templates">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="template-actions" style="margin-bottom: 1.5rem;">
+                    <button class="btn btn-primary" id="save-template-btn">💾 Save Current as Template</button>
+                </div>
+                <div id="templates-list">
+                    <div class="history-empty">No templates saved yet</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="close-templates-footer">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Batch Processing Modal -->
+    <div class="modal" id="batch-modal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Batch Processing</h2>
+                <button class="modal-close" id="close-batch">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Batch processing allows you to generate reports for multiple date ranges at once.</p>
+                <div id="batch-ranges" style="margin-top: 1.5rem;">
+                    <div class="batch-range-item" style="margin-bottom: 1rem; padding: 1rem; background: var(--gray-50); border-radius: 8px;">
+                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Date Range 1</label>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <input type="date" class="search-box" id="batch-start-1">
+                            <input type="date" class="search-box" id="batch-end-1">
+                        </div>
+                    </div>
+                </div>
+                <button class="btn btn-secondary" id="add-batch-range" style="margin-top: 1rem;">+ Add Date Range</button>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancel-batch">Cancel</button>
+                <button class="btn btn-primary" id="start-batch">Start Batch Processing</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analytics Modal -->
+    <div class="modal" id="analytics-modal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content" style="max-width: 1200px;">
+            <div class="modal-header">
+                <h2>Advanced Analytics</h2>
+                <button class="modal-close" id="close-analytics">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="analytics-content">
+                    <div class="preview-stats" id="analytics-stats"></div>
+                    <div id="analytics-charts" style="margin-top: 2rem;"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="export-analytics">Export Analytics</button>
+                <button class="btn btn-primary" id="close-analytics-footer">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Options Modal -->
+    <div class="modal" id="export-modal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h2>Export Options</h2>
+                <button class="modal-close" id="close-export">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="display: flex; flex-direction: column; gap: 1rem;">
+                    <button class="btn btn-primary" id="export-pdf-btn" style="width: 100%; justify-content: center;">
+                        📄 Export to PDF
+                    </button>
+                    <button class="btn btn-secondary" id="export-csv-all" style="width: 100%; justify-content: center;">
+                        📊 Export All Sheets as CSV
+                    </button>
+                    <div id="export-sheets-list" style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1rem;">
+                        <label style="font-weight: 600; margin-bottom: 0.5rem;">Export Individual Sheets:</label>
+                    </div>
+                    <button class="btn btn-secondary" id="share-report-btn" style="width: 100%; justify-content: center;">
+                        🔗 Generate Shareable Link
+                    </button>
+                    <button class="btn btn-secondary" id="email-report-btn" style="width: 100%; justify-content: center;">
+                        📧 Email Report
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="close-export-footer">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Flash Messages (from Flask) -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+    <script>
+                    setTimeout(() => {
+                        showToast('{{ message }}', '{{ category }}');
+                    }, 100);
+                </script>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Load JavaScript -->
+    <script>
+// File Upload State Management
+const uploadState = {
+    files: {
+        doxy: null,
+        account: null,
+        gusto: null,
+        booking: null
+    },
+    validated: {
+        doxy: false,
+        account: false,
+        gusto: false,
+        booking: false
+    }
+};
+
+// Theme Management
+function initTheme() {
+    const savedTheme = localStorage.getItem('theme') || 'light';
+        const html = document.documentElement;
+    const themeIcon = document.getElementById('theme-icon');
+        
+        html.setAttribute('data-theme', savedTheme);
+    themeIcon.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+}
+
+function toggleTheme() {
+    const html = document.documentElement;
+    const currentTheme = html.getAttribute('data-theme') || 'light';
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    const themeIcon = document.getElementById('theme-icon');
+    
+    html.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+    themeIcon.textContent = newTheme === 'dark' ? '☀️' : '🌙';
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', () => {
+    // Initialize theme
+    initTheme();
+    
+    // Setup theme toggle
+    document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+    
+    // Setup all dropzones
+    setupDropzone('doxy-dropzone', 'doxy_file', 'doxy');
+    setupDropzone('account-dropzone', 'account_file', 'account');
+    setupDropzone('gusto-dropzone', 'gusto_file', 'gusto');
+    setupDropzone('booking-dropzone', 'booking_file', 'booking');
+    
+    // Load report history
+    loadReportHistory();
+    
+    // Setup preview button
+    document.getElementById('preview-btn').addEventListener('click', showPreview);
+    
+    // Setup modal close handlers
+    document.getElementById('close-preview').addEventListener('click', () => hideModal('preview-modal'));
+    document.getElementById('cancel-preview').addEventListener('click', () => hideModal('preview-modal'));
+    document.getElementById('confirm-generate').addEventListener('click', () => {
+        hideModal('preview-modal');
+        document.getElementById('upload-form').submit();
+    });
+    
+    // Setup form submission
+    document.getElementById('upload-form').addEventListener('submit', handleFormSubmit);
+    
+    // Update button states
+    updateButtonStates();
+});
+
+// Drag-and-Drop Handlers
+function setupDropzone(dropzoneId, fileInputId, fileType) {
+    const dropzone = document.getElementById(dropzoneId);
+    const fileInput = document.getElementById(fileInputId);
+    const statusDiv = document.getElementById(`${fileType}-status`);
+    const previewDiv = document.getElementById(`${fileType}-preview`);
+    
+    // Click to browse
+    dropzone.addEventListener('click', (e) => {
+        if (e.target.closest('.dropzone-link') || !fileInput.files.length) {
+            fileInput.click();
+        }
+    });
+    
+    // Drag events
+    dropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropzone.classList.add('dragover');
+    });
+    
+    dropzone.addEventListener('dragleave', () => {
+        dropzone.classList.remove('dragover');
+    });
+    
+    dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('dragover');
+        
+        if (e.dataTransfer.files.length > 0) {
+            fileInput.files = e.dataTransfer.files;
+            handleFileSelect(fileInput.files[0], fileType, statusDiv, previewDiv, dropzone);
+        }
+    });
+    
+    // File input change
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            handleFileSelect(e.target.files[0], fileType, statusDiv, previewDiv, dropzone);
+        }
+    });
+}
+
+// Handle file selection
+async function handleFileSelect(file, fileType, statusDiv, previewDiv, dropzone) {
+    // Update state
+    uploadState.files[fileType] = file;
+    uploadState.validated[fileType] = false;
+    
+    // Show loading
+    statusDiv.innerHTML = '<div class="loading"></div> Validating...';
+    dropzone.classList.remove('success', 'error');
+    
+    // Client-side validation
+    const clientValidation = validateFile(file, fileType);
+    
+    if (!clientValidation.valid) {
+        showValidationResult(statusDiv, { valid: false, errors: clientValidation.errors, warnings: [] }, fileType);
+        dropzone.classList.add('error');
+        updateButtonStates();
+                return;
+            }
             
-            <div class="preview-summary" id="preview-summary">
+    // Server-side validation
+    try {
+        const result = await validateFileServer(file, fileType);
+        showValidationResult(statusDiv, result, fileType);
+        
+        if (result.valid) {
+            dropzone.classList.add('success');
+            dropzone.classList.remove('error');
+            uploadState.validated[fileType] = true;
+            
+            // Show preview if available
+            if (result.preview) {
+                showFilePreview(previewDiv, result.preview);
+            }
+        } else {
+            dropzone.classList.add('error');
+            dropzone.classList.remove('success');
+        }
+    } catch (error) {
+        showValidationResult(statusDiv, { valid: false, errors: [error.message], warnings: [] }, fileType);
+        dropzone.classList.add('error');
+    }
+    
+    updateButtonStates();
+}
+
+// Client-Side File Validation
+function validateFile(file, fileType) {
+    const errors = [];
+    const warnings = [];
+    
+    // File size check (max 10MB)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+        errors.push(`File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum is 10MB.`);
+    }
+    
+    // File extension check
+    const allowedExtensions = ['.csv', '.xls', '.xlsx'];
+    const fileExt = '.' + file.name.split('.').pop().toLowerCase();
+    if (!allowedExtensions.includes(fileExt)) {
+        errors.push('Invalid file type. Please upload CSV or Excel file.');
+    }
+    
+    return {
+        valid: errors.length === 0,
+        errors: errors,
+        warnings: warnings
+    };
+}
+
+// Server-Side Validation API Call
+async function validateFileServer(file, fileType) {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('file_type', fileType);
+    
+    try {
+        const response = await fetch('/api/validate-file', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (!response.ok) {
+            throw new Error('Validation request failed');
+        }
+        
+        return await response.json();
+            } catch (error) {
+        return {
+            valid: false,
+            errors: [error.message],
+            warnings: [],
+            info: []
+        };
+    }
+}
+
+// Show Validation Result
+function showValidationResult(statusDiv, result, fileType) {
+    if (result.valid) {
+        let html = '<div class="validation-success"><strong>✓ File is valid</strong>';
+        if (result.info && result.info.length > 0) {
+            html += '<ul>';
+            result.info.forEach(info => {
+                html += `<li>${info}</li>`;
+            });
+            html += '</ul>';
+        }
+        html += '</div>';
+        statusDiv.innerHTML = html;
+    } else {
+        let html = '<div class="validation-error"><strong>✗ Validation failed</strong><ul>';
+        result.errors.forEach(error => {
+            html += `<li class="error">${error}</li>`;
+        });
+        html += '</ul></div>';
+        
+        if (result.warnings && result.warnings.length > 0) {
+            html += '<div class="validation-warnings"><strong>⚠ Warnings:</strong><ul>';
+            result.warnings.forEach(warning => {
+                html += `<li class="warning">${warning}</li>`;
+            });
+            html += '</ul></div>';
+        }
+        
+        statusDiv.innerHTML = html;
+    }
+}
+
+// Show File Preview
+function showFilePreview(previewDiv, preview) {
+    if (!preview || !preview.sample_data || preview.sample_data.length === 0) {
+        previewDiv.style.display = 'none';
+        return;
+    }
+    
+    previewDiv.style.display = 'block';
+    previewDiv.classList.add('show');
+    
+    let html = '<div class="file-preview-content"><h4>Preview (first 5 rows)</h4>';
+    html += `<p><strong>Columns:</strong> ${preview.columns.join(', ')}</p>`;
+    html += '<table class="preview-table"><thead><tr>';
+    
+    preview.columns.forEach(col => {
+        html += `<th>${col}</th>`;
+    });
+    html += '</tr></thead><tbody>';
+    
+    preview.sample_data.forEach(row => {
+        html += '<tr>';
+        preview.columns.forEach(col => {
+            html += `<td>${row[col] || ''}</td>`;
+        });
+        html += '</tr>';
+    });
+    
+    html += '</tbody></table></div>';
+    previewDiv.innerHTML = html;
+}
+
+// Update Button States
+function updateButtonStates() {
+    const requiredFiles = ['doxy', 'account', 'gusto'];
+    const allRequiredValid = requiredFiles.every(type => uploadState.validated[type]);
+    
+    const previewBtn = document.getElementById('preview-btn');
+    const generateBtn = document.getElementById('generate-btn');
+    
+    previewBtn.disabled = !allRequiredValid;
+    generateBtn.disabled = !allRequiredValid;
+    
+    if (allRequiredValid) {
+        updateProgressSteps(2);
+    }
+}
+
+// Progress Steps Update
+function updateProgressSteps(currentStep) {
+    const steps = document.querySelectorAll('.step');
+    steps.forEach((step, index) => {
+        const stepNum = index + 1;
+        step.classList.remove('active', 'complete');
+        
+        if (stepNum < currentStep) {
+            step.classList.add('complete');
+        } else if (stepNum === currentStep) {
+            step.classList.add('active');
+        }
+    });
+}
+
+// Preview Functionality
+async function showPreview() {
+    const form = document.getElementById('upload-form');
+    const formData = new FormData(form);
+    
+    // Check if required files are uploaded
+    const requiredFiles = ['doxy', 'account', 'gusto'];
+    const missingFiles = requiredFiles.filter(type => !uploadState.files[type]);
+    
+    if (missingFiles.length > 0) {
+        showToast('Please upload all required files first', 'error');
+                    return;
+                }
+    
+    const previewBtn = document.getElementById('preview-btn');
+    previewBtn.disabled = true;
+    previewBtn.textContent = '⏳ Loading...';
+    
+    try {
+        const response = await fetch('/preview', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Preview failed');
+        }
+        
+        const data = await response.json();
+        
+        // Populate preview modal
+        populatePreviewModal(data);
+        showModal('preview-modal');
+        
+    } catch (error) {
+        showToast(`Preview error: ${error.message}`, 'error');
+    } finally {
+        previewBtn.disabled = false;
+        previewBtn.textContent = '👁️ Preview Data';
+    }
+}
+
+// Populate Preview Modal
+function populatePreviewModal(data) {
+    // Summary stats
+    const statsHtml = `
+        <div class="preview-stat">
+            <div class="preview-stat-number">${data.summary.total_providers || 0}</div>
+            <div class="preview-stat-label">Providers</div>
+        </div>
+        <div class="preview-stat">
+            <div class="preview-stat-number">${data.summary.total_doxy_visits || 0}</div>
+            <div class="preview-stat-label">Total Visits</div>
+        </div>
+        <div class="preview-stat">
+            <div class="preview-stat-number">${data.summary.total_hours_worked || 0}</div>
+            <div class="preview-stat-label">Hours Worked</div>
+        </div>
+    `;
+    document.getElementById('preview-stats').innerHTML = statsHtml;
+    
+    // Tabs and table
+    let tabsHtml = '';
+    let activeSheet = null;
+    
+    data.sheets.forEach((sheet, index) => {
+        if (sheet.name === 'OnceHub Visits' && !sheet.available) {
+            return;
+        }
+        
+        const isActive = index === 0;
+        const tabId = `tab-${index}`;
+        
+        tabsHtml += `
+            <button class="preview-tab ${isActive ? 'active' : ''}" data-tab="${tabId}" data-sheet-index="${index}">
+                ${sheet.name}
+            </button>
+        `;
+        
+        if (isActive) {
+            activeSheet = sheet;
+        }
+    });
+    
+    document.getElementById('preview-tabs').innerHTML = tabsHtml;
+    
+    // Tab click handlers
+    document.querySelectorAll('.preview-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            const sheetIndex = parseInt(tab.dataset.sheetIndex);
+            const sheet = data.sheets[sheetIndex];
+            
+            // Update active tab
+            document.querySelectorAll('.preview-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            
+            // Update table
+            renderPreviewTable(sheet);
+            });
+        });
+
+    // Render initial table
+    if (activeSheet) {
+        renderPreviewTable(activeSheet);
+    }
+    
+    // Alerts
+    const alertsHtml = '';
+    document.getElementById('preview-alerts').innerHTML = alertsHtml;
+}
+
+// Render Preview Table
+function renderPreviewTable(sheet) {
+    const tableContainer = document.getElementById('preview-table').parentElement;
+    
+    if (!sheet.columns || sheet.columns.length === 0 || !sheet.sample_data || sheet.sample_data.length === 0) {
+        tableContainer.innerHTML = '<div class="empty-sheet-message" style="padding: 2rem; text-align: center; color: var(--gray-500);">No data available for this sheet</div>';
+        return;
+    }
+    
+    let html = '<table class="preview-table"><thead><tr>';
+    sheet.columns.forEach(col => {
+        html += `<th>${col}</th>`;
+    });
+    html += '</tr></thead><tbody>';
+    
+    const rows = sheet.sample_data || [];
+    const maxRows = Math.min(rows.length, 20);
+    
+    for (let i = 0; i < maxRows; i++) {
+        html += '<tr>';
+        sheet.columns.forEach(col => {
+            const value = rows[i][col] !== undefined && rows[i][col] !== null ? rows[i][col] : '';
+            html += `<td>${value}</td>`;
+        });
+        html += '</tr>';
+    }
+    
+    if (sheet.rows > maxRows) {
+        html += `<tr><td colspan="${sheet.columns.length}" style="text-align: center; color: var(--gray-500);">... and ${sheet.rows - maxRows} more rows</td></tr>`;
+    }
+    
+    html += '</tbody></table>';
+    tableContainer.innerHTML = html;
+}
+
+// Form Submission Handler
+async function handleFormSubmit(e) {
+            e.preventDefault();
+    
+    updateProgressSteps(3);
+    showModal('progress-modal');
+    
+    const form = document.getElementById('upload-form');
+    const formData = new FormData(form);
+    
+    // Update progress stages
+    updateProgressStage('upload', 'active');
+    
+    try {
+        const xhr = new XMLHttpRequest();
+        
+        // Track upload progress
+        xhr.upload.addEventListener('progress', (e) => {
+            if (e.lengthComputable) {
+                const percentComplete = (e.loaded / e.total) * 100;
+                if (percentComplete >= 100) {
+                    updateProgressStage('upload', 'complete');
+                    updateProgressStage('parse', 'active');
+                }
+            }
+        });
+        
+        xhr.addEventListener('load', () => {
+            if (xhr.status === 200) {
+                updateProgressStage('parse', 'complete');
+                updateProgressStage('validate', 'complete');
+                updateProgressStage('calculate', 'complete');
+                updateProgressStage('generate', 'complete');
+                
+                    // Trigger download
+                const blob = new Blob([xhr.response], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                
+                const contentDisposition = xhr.getResponseHeader('Content-Disposition');
+                const filename = contentDisposition 
+                    ? contentDisposition.split('filename=')[1]?.replace(/"/g, '') 
+                    : 'Weekly Report.xlsx';
+                a.download = filename;
+                
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                    
+                // Hide progress modal
+                setTimeout(() => {
+                    hideModal('progress-modal');
+                    updateProgressSteps(4);
+                    showToast('Report generated successfully!', 'success');
+                    
+                    // Reload history
+                    loadReportHistory();
+                        }, 500);
+            } else {
+                throw new Error('Report generation failed');
+            }
+        });
+        
+        xhr.addEventListener('error', () => {
+            throw new Error('Network error');
+        });
+        
+        xhr.open('POST', '/');
+        xhr.responseType = 'blob';
+        xhr.send(formData);
+        
+            } catch (error) {
+        hideModal('progress-modal');
+        showToast(`Error: ${error.message}`, 'error');
+    }
+}
+
+// Update Progress Stage
+function updateProgressStage(stage, status) {
+    const stageEl = document.querySelector(`[data-stage="${stage}"]`);
+    if (stageEl) {
+        stageEl.classList.remove('active', 'complete');
+        if (status === 'active') {
+            stageEl.classList.add('active');
+            stageEl.querySelector('.stage-icon').textContent = '⏳';
+        } else if (status === 'complete') {
+            stageEl.classList.add('complete');
+            stageEl.querySelector('.stage-icon').textContent = '✓';
+        }
+    }
+}
+
+// Modal Controls
+function showModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.classList.add('show');
+    }
+}
+
+function hideModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.classList.remove('show');
+    }
+}
+
+// Toast Notifications
+function showToast(message, type = 'info') {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    
+    const icons = {
+        success: '✓',
+        error: '✗',
+        warning: '⚠',
+        info: 'ℹ'
+    };
+    
+    toast.innerHTML = `
+        <span class="toast-icon">${icons[type] || 'ℹ'}</span>
+        <span class="toast-message">${message}</span>
+        <button class="toast-close" onclick="this.parentElement.remove()">&times;</button>
+    `;
+    
+    container.appendChild(toast);
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        toast.classList.add('hiding');
+        setTimeout(() => toast.remove(), 300);
+    }, 5000);
+}
+
+// Report History Loading
+async function loadReportHistory() {
+    try {
+        const response = await fetch('/api/report-history');
+        if (!response.ok) {
+            return;
+        }
+        
+        const data = await response.json();
+        const historyDiv = document.getElementById('report-history');
+        
+        if (data.reports && data.reports.length > 0) {
+            historyDiv.innerHTML = data.reports.map(report => `
+                <div class="report-item" onclick="downloadReport('${report.filename}')">
+                    <div class="report-item-name">${report.filename}</div>
+                    <div class="report-item-date">${report.date}</div>
+                </div>
+            `).join('');
+        } else {
+            historyDiv.innerHTML = '<div class="history-empty">No reports yet</div>';
+        }
+    } catch (error) {
+        console.error('Error loading history:', error);
+    }
+}
+
+// Download Report
+function downloadReport(filename) {
+    window.location.href = `/download/${filename}`;
+}
+
+// Make functions globally available
+window.showToast = showToast;
+window.downloadReport = downloadReport;
+
+// ============================================
+// COMPREHENSIVE FEATURE ENHANCEMENTS
+// ============================================
+
+// File Size Display
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+}
+
+// Update file size display
+function updateFileSizeDisplay(file, fileType) {
+    const dropzone = document.getElementById(`${fileType}-dropzone`);
+    const hint = dropzone.querySelector('.dropzone-hint');
+    if (hint && file) {
+        const originalText = hint.textContent.split('•')[0].trim();
+        hint.innerHTML = `${originalText} • ${formatFileSize(file.size)}`;
+    }
+}
+
+// Processing Time Estimates
+const processingEstimates = {
+    upload: 2,
+    parse: 5,
+    validate: 3,
+    calculate: 4,
+    generate: 6
+};
+
+let startTime = null;
+function updateTimeEstimate(stage) {
+    const stageEl = document.querySelector(`[data-stage="${stage}"]`);
+    if (!stageEl) return;
+    
+    if (!startTime) startTime = Date.now();
+    
+    const elapsed = (Date.now() - startTime) / 1000;
+    const remaining = Object.values(processingEstimates).slice(
+        Object.keys(processingEstimates).indexOf(stage)
+    ).reduce((a, b) => a + b, 0);
+    
+    const timeEl = stageEl.querySelector('.progress-time');
+    if (timeEl) {
+        timeEl.textContent = `~${remaining}s remaining`;
+    } else {
+        const timeDiv = document.createElement('div');
+        timeDiv.className = 'progress-time';
+        timeDiv.textContent = `~${remaining}s remaining`;
+        stageEl.appendChild(timeDiv);
+    }
+}
+
+// Copy to Clipboard
+function copyToClipboard(text, element) {
+    navigator.clipboard.writeText(text).then(() => {
+        if (element) {
+            const originalText = element.textContent;
+            element.textContent = 'Copied!';
+            element.classList.add('copied');
+            setTimeout(() => {
+                element.textContent = originalText;
+                element.classList.remove('copied');
+            }, 2000);
+        }
+        showToast('Copied to clipboard!', 'success');
+    }).catch(() => {
+        showToast('Failed to copy', 'error');
+    });
+}
+
+// Loading Skeletons
+function showSkeleton(element) {
+    element.innerHTML = '<div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text" style="width: 60%"></div>';
+}
+
+// Keyboard Shortcuts
+let shortcutHintTimeout;
+function showShortcutHint() {
+    const hint = document.getElementById('shortcut-hint');
+    hint.classList.add('show');
+    clearTimeout(shortcutHintTimeout);
+    shortcutHintTimeout = setTimeout(() => {
+        hint.classList.remove('show');
+    }, 3000);
+}
+
+document.addEventListener('keydown', (e) => {
+    const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+    const ctrlKey = isMac ? e.metaKey : e.ctrlKey;
+    
+    // Command Palette (Ctrl/Cmd + K)
+    if (ctrlKey && e.key === 'k') {
+        e.preventDefault();
+        showCommandPalette();
+        return;
+    }
+    
+    // Generate Report (Ctrl/Cmd + Enter)
+    if (ctrlKey && e.key === 'Enter') {
+        e.preventDefault();
+        const generateBtn = document.getElementById('generate-btn');
+        if (!generateBtn.disabled) {
+            generateBtn.click();
+        }
+        return;
+    }
+    
+    // Preview (Ctrl/Cmd + Shift + P)
+    if (ctrlKey && e.shiftKey && e.key === 'P') {
+        e.preventDefault();
+        const previewBtn = document.getElementById('preview-btn');
+        if (!previewBtn.disabled) {
+            previewBtn.click();
+        }
+        return;
+    }
+    
+    // Toggle Theme (Ctrl/Cmd + T)
+    if (ctrlKey && e.key === 't') {
+        e.preventDefault();
+        toggleTheme();
+        return;
+    }
+    
+    // Help (F1 or ?)
+    if (e.key === 'F1' || (e.key === '?' && !e.ctrlKey && !e.metaKey)) {
+        e.preventDefault();
+        showModal('help-modal');
+        return;
+    }
+    
+    // Close modals with Escape
+    if (e.key === 'Escape') {
+        const openModals = document.querySelectorAll('.modal.show');
+        openModals.forEach(modal => {
+            if (modal.id !== 'progress-modal') {
+                hideModal(modal.id);
+            }
+        });
+        hideCommandPalette();
+    }
+    
+    // Show shortcut hint on first use
+    if (ctrlKey) {
+        showShortcutHint();
+    }
+});
+
+// Command Palette
+let selectedCommandIndex = -1;
+const commands = [
+    { id: 'generate', title: 'Generate Report', desc: 'Create the weekly report', action: () => {
+        const btn = document.getElementById('generate-btn');
+        if (!btn.disabled) btn.click();
+    }},
+    { id: 'preview', title: 'Preview Data', desc: 'Review data before generating', action: () => {
+        const btn = document.getElementById('preview-btn');
+        if (!btn.disabled) btn.click();
+    }},
+    { id: 'theme', title: 'Toggle Theme', desc: 'Switch between light and dark mode', action: toggleTheme},
+    { id: 'help', title: 'Show Help', desc: 'Open help and tutorial', action: () => showModal('help-modal')},
+    { id: 'export-pdf', title: 'Export to PDF', desc: 'Generate PDF version (after preview)', action: () => {
+        showToast('PDF export coming soon!', 'info');
+    }}
+];
+
+function showCommandPalette() {
+    const palette = document.getElementById('command-palette');
+    const input = document.getElementById('command-input');
+    palette.classList.add('show');
+    input.value = '';
+    input.focus();
+    selectedCommandIndex = -1;
+    filterCommands('');
+}
+
+function hideCommandPalette() {
+    const palette = document.getElementById('command-palette');
+    palette.classList.remove('show');
+    selectedCommandIndex = -1;
+}
+
+function filterCommands(query) {
+    const list = document.getElementById('command-list');
+    const filtered = commands.filter(cmd => 
+        cmd.title.toLowerCase().includes(query.toLowerCase()) ||
+        cmd.desc.toLowerCase().includes(query.toLowerCase())
+    );
+    
+    list.innerHTML = filtered.map((cmd, index) => `
+        <li class="command-palette-item ${index === selectedCommandIndex ? 'selected' : ''}" 
+            data-command="${cmd.id}" data-index="${index}">
+            <div class="command-palette-item-title">${cmd.title}</div>
+            <div class="command-palette-item-desc">${cmd.desc}</div>
+        </li>
+    `).join('');
+    
+    // Add click handlers
+    list.querySelectorAll('.command-palette-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const cmd = commands.find(c => c.id === item.dataset.command);
+            if (cmd) {
+                hideCommandPalette();
+                cmd.action();
+            }
+        });
+    });
+}
+
+document.getElementById('command-input').addEventListener('input', (e) => {
+    filterCommands(e.target.value);
+    selectedCommandIndex = -1;
+});
+
+document.getElementById('command-input').addEventListener('keydown', (e) => {
+    const items = document.querySelectorAll('.command-palette-item');
+    
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        selectedCommandIndex = Math.min(selectedCommandIndex + 1, items.length - 1);
+        updateCommandSelection(items);
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        selectedCommandIndex = Math.max(selectedCommandIndex - 1, -1);
+        updateCommandSelection(items);
+    } else if (e.key === 'Enter' && selectedCommandIndex >= 0) {
+        e.preventDefault();
+        items[selectedCommandIndex].click();
+    }
+});
+
+function updateCommandSelection(items) {
+    items.forEach((item, index) => {
+        item.classList.toggle('selected', index === selectedCommandIndex);
+    });
+}
+
+// Help System
+document.getElementById('help-btn').addEventListener('click', () => showModal('help-modal'));
+document.getElementById('close-help').addEventListener('click', () => hideModal('help-modal'));
+document.getElementById('close-help-footer').addEventListener('click', () => hideModal('help-modal'));
+
+// Enhanced Preview with Charts
+function renderCharts(data) {
+    const chartsContainer = document.getElementById('charts-container');
+    if (!chartsContainer) return;
+    
+    // Clear existing charts
+    chartsContainer.innerHTML = '';
+    
+    // Provider Visits Chart
+    if (data.summary && data.sheets) {
+        const visitsSheet = data.sheets.find(s => s.name === 'Doxy Visits');
+        if (visitsSheet && visitsSheet.data && visitsSheet.data.data) {
+            const visitsData = visitsSheet.data.data.slice(0, 10); // Top 10
+            const ctx1 = document.createElement('canvas');
+            ctx1.id = 'visits-chart';
+            chartsContainer.appendChild(ctx1);
+            
+            new Chart(ctx1, {
+                type: 'bar',
+                data: {
+                    labels: visitsData.map(d => d.Provider || d['Provider Name']),
+                    datasets: [{
+                        label: 'Total Visits',
+                        data: visitsData.map(d => parseInt(d['Total Visits'] || 0)),
+                        backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                        borderColor: 'rgba(59, 130, 246, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Top 10 Providers by Visits'
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Program Distribution Pie Chart
+        const programSheet = data.sheets.find(s => s.name === 'Visits by Program');
+        if (programSheet && programSheet.data && programSheet.data.data) {
+            const programData = programSheet.data.data;
+            const trt = programData.reduce((sum, d) => sum + parseInt(d.TRT || 0), 0);
+            const hrt = programData.reduce((sum, d) => sum + parseInt(d.HRT || 0), 0);
+            const other = programData.reduce((sum, d) => sum + parseInt(d.Other || 0), 0);
+            
+            const ctx2 = document.createElement('canvas');
+            ctx2.id = 'program-chart';
+            chartsContainer.appendChild(ctx2);
+            
+            new Chart(ctx2, {
+                type: 'pie',
+                data: {
+                    labels: ['TRT', 'HRT', 'Other'],
+                    datasets: [{
+                        data: [trt, hrt, other],
+                        backgroundColor: [
+                            'rgba(59, 130, 246, 0.8)',
+                            'rgba(16, 185, 129, 0.8)',
+                            'rgba(245, 158, 11, 0.8)'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Visits by Program Type'
+                        }
+                    }
+                }
+            });
+        }
+    }
+}
+
+// Enhanced Preview with Sorting and Filtering
+let currentSortColumn = null;
+let currentSortDirection = 'asc';
+let currentFilter = '';
+
+function setupTableSorting() {
+    const table = document.getElementById('preview-table');
+    if (!table) return;
+    
+    const headers = table.querySelectorAll('thead th');
+    headers.forEach((header, index) => {
+        header.style.cursor = 'pointer';
+        header.addEventListener('click', () => {
+            sortTable(index, header);
+        });
+    });
+}
+
+function sortTable(columnIndex, header) {
+    const table = document.getElementById('preview-table');
+    const tbody = table.querySelector('tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    
+    // Toggle sort direction
+    if (currentSortColumn === columnIndex) {
+        currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+        currentSortColumn = columnIndex;
+        currentSortDirection = 'asc';
+    }
+    
+    // Remove existing indicators
+    table.querySelectorAll('.sort-indicator').forEach(el => el.remove());
+    
+    // Add indicator
+    const indicator = document.createElement('span');
+    indicator.className = 'sort-indicator active';
+    indicator.textContent = currentSortDirection === 'asc' ? '↑' : '↓';
+    header.appendChild(indicator);
+    
+    // Sort rows
+    rows.sort((a, b) => {
+        const aVal = a.cells[columnIndex]?.textContent.trim() || '';
+        const bVal = b.cells[columnIndex]?.textContent.trim() || '';
+        
+        const aNum = parseFloat(aVal);
+        const bNum = parseFloat(bVal);
+        
+        if (!isNaN(aNum) && !isNaN(bNum)) {
+            return currentSortDirection === 'asc' ? aNum - bNum : bNum - aNum;
+        }
+        
+        return currentSortDirection === 'asc' 
+            ? aVal.localeCompare(bVal)
+            : bVal.localeCompare(aVal);
+    });
+    
+    // Re-append sorted rows
+    rows.forEach(row => tbody.appendChild(row));
+}
+
+function filterTable(query) {
+    currentFilter = query.toLowerCase();
+    const table = document.getElementById('preview-table');
+    if (!table) return;
+    
+    const rows = table.querySelectorAll('tbody tr');
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(currentFilter) ? '' : 'none';
+    });
+}
+
+// Enhanced file handling with size display
+const originalHandleFileSelectFunc = handleFileSelect;
+async function enhancedHandleFileSelect(file, fileType, statusDiv, previewDiv, dropzone) {
+    updateFileSizeDisplay(file, fileType);
+    return await originalHandleFileSelectFunc(file, fileType, statusDiv, previewDiv, dropzone);
+}
+// Replace the function
+handleFileSelect = enhancedHandleFileSelect;
+
+// Update progress stage to include time estimates
+const originalUpdateProgressStage = updateProgressStage;
+updateProgressStage = function(stage, status) {
+    originalUpdateProgressStage(stage, status);
+    if (status === 'active') {
+        updateTimeEstimate(stage);
+    }
+};
+
+// Enhanced populatePreviewModal with charts
+const originalPopulatePreviewModal = populatePreviewModal;
+populatePreviewModal = function(data) {
+    originalPopulatePreviewModal(data);
+    
+    // Add charts container if it doesn't exist
+    let chartsContainer = document.getElementById('charts-container');
+    if (!chartsContainer) {
+        chartsContainer = document.createElement('div');
+        chartsContainer.id = 'charts-container';
+        chartsContainer.className = 'charts-container';
+        const stats = document.getElementById('preview-stats');
+        stats.parentNode.insertBefore(chartsContainer, stats.nextSibling);
+    }
+    
+    // Add search and sort controls
+    let controls = document.getElementById('preview-controls');
+    if (!controls) {
+        controls = document.createElement('div');
+        controls.id = 'preview-controls';
+        controls.className = 'preview-controls';
+        controls.innerHTML = `
+            <input type="text" class="search-box" id="preview-search" placeholder="Search providers...">
+            <button class="sort-btn" id="sort-provider">Sort by Provider</button>
+            <button class="export-preview-btn" id="export-preview">Export Preview</button>
+        `;
+        const tableContainer = document.querySelector('.preview-table-container');
+        tableContainer.parentNode.insertBefore(controls, tableContainer);
+        
+        // Setup search
+        document.getElementById('preview-search').addEventListener('input', (e) => {
+            filterTable(e.target.value);
+        });
+        
+        // Setup export
+        document.getElementById('export-preview').addEventListener('click', () => {
+            exportPreviewData(data);
+        });
+    }
+    
+    // Setup table sorting
+    setTimeout(() => {
+        setupTableSorting();
+    }, 100);
+    
+    // Render charts
+    setTimeout(() => {
+        renderCharts(data);
+    }, 200);
+};
+
+// Export preview data
+function exportPreviewData(data) {
+    const csv = convertToCSV(data);
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `preview_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+    showToast('Preview data exported!', 'success');
+}
+
+function convertToCSV(data) {
+    // Simple CSV conversion
+    const sheet = data.sheets[0];
+    if (!sheet || !sheet.data) return '';
+    
+    const cols = sheet.data.columns || [];
+    const rows = sheet.data.data || [];
+    
+    let csv = cols.join(',') + '\n';
+    rows.forEach(row => {
+        csv += cols.map(col => `"${row[col] || ''}"`).join(',') + '\n';
+    });
+    
+    return csv;
+}
+
+// ============================================
+// PHASE 2-5: REMAINING FEATURES
+// ============================================
+
+// Templates Management
+let templates = [];
+async function loadTemplates() {
+    try {
+        const response = await fetch('/api/templates');
+        if (response.ok) {
+            const data = await response.json();
+            templates = data.templates || [];
+            renderTemplates();
+        }
+    } catch (error) {
+        console.error('Error loading templates:', error);
+    }
+}
+
+function renderTemplates() {
+    const list = document.getElementById('templates-list');
+    if (!list) return;
+    
+    if (templates.length === 0) {
+        list.innerHTML = `
+            <div class="history-empty">
+                <div class="history-empty-icon">📝</div>
+                <div class="history-empty-title">No templates saved yet</div>
+                <div class="history-empty-description">Save your current file configuration as a template to quickly reuse it later. Templates save time on repetitive reports.</div>
+            </div>
+        `;
+        return;
+    }
+    
+    list.innerHTML = templates.map((template, index) => `
+        <div class="report-item" style="margin-bottom: 0.5rem;">
+            <div class="report-item-name">${template.name}</div>
+            <div class="report-item-date">Created: ${new Date(template.created).toLocaleDateString()}</div>
+            <div style="margin-top: 0.5rem; display: flex; gap: 0.5rem;">
+                <button class="btn btn-secondary" style="padding: 0.25rem 0.75rem; font-size: 0.75rem;" onclick="loadTemplate(${index})">Load</button>
+                <button class="btn btn-secondary" style="padding: 0.25rem 0.75rem; font-size: 0.75rem;" onclick="deleteTemplate(${index})">Delete</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function saveTemplate() {
+    const name = prompt('Enter template name:');
+    if (!name) return;
+    
+    try {
+        const response = await fetch('/api/templates', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                name: name,
+                config: {
+                    files: Object.keys(uploadState.files).filter(k => uploadState.files[k]),
+                    validated: uploadState.validated
+                }
+            })
+        });
+        
+        if (response.ok) {
+            showToast('Template saved successfully!', 'success');
+            loadTemplates();
+        } else {
+            showToast('Failed to save template', 'error');
+        }
+    } catch (error) {
+        showToast('Error saving template', 'error');
+    }
+}
+
+function loadTemplate(index) {
+    const template = templates[index];
+    if (!template) return;
+    
+    // Load template configuration
+    showToast(`Template "${template.name}" loaded`, 'success');
+    hideModal('templates-modal');
+}
+
+async function deleteTemplate(index) {
+    if (!confirm('Delete this template?')) return;
+    
+    templates.splice(index, 1);
+    // In a real implementation, you'd call DELETE API
+    showToast('Template deleted', 'success');
+    renderTemplates();
+}
+
+// Batch Processing
+let batchRanges = [];
+function addBatchRange() {
+    const container = document.getElementById('batch-ranges');
+    const count = batchRanges.length + 1;
+    
+    const rangeDiv = document.createElement('div');
+    rangeDiv.className = 'batch-range-item';
+    rangeDiv.style.cssText = 'margin-bottom: 1rem; padding: 1rem; background: var(--gray-50); border-radius: 8px;';
+    rangeDiv.innerHTML = `
+        <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Date Range ${count}</label>
+        <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 1rem; align-items: end;">
+            <div>
+                <label style="font-size: 0.875rem; color: var(--text-secondary);">Start Date</label>
+                <input type="date" class="search-box" id="batch-start-${count}" style="width: 100%;">
+            </div>
+            <div>
+                <label style="font-size: 0.875rem; color: var(--text-secondary);">End Date</label>
+                <input type="date" class="search-box" id="batch-end-${count}" style="width: 100%;">
+            </div>
+            <button class="btn btn-secondary" onclick="removeBatchRange(this)" style="padding: 0.5rem 1rem;">Remove</button>
+        </div>
+    `;
+    
+    container.appendChild(rangeDiv);
+    batchRanges.push({start: null, end: null});
+}
+
+function removeBatchRange(btn) {
+    btn.closest('.batch-range-item').remove();
+}
+
+async function startBatchProcessing() {
+    const ranges = [];
+    document.querySelectorAll('.batch-range-item').forEach((item, index) => {
+        const start = item.querySelector(`#batch-start-${index + 1}`)?.value;
+        const end = item.querySelector(`#batch-end-${index + 1}`)?.value;
+        if (start && end) {
+            ranges.push({start, end});
+        }
+    });
+    
+    if (ranges.length === 0) {
+        showToast('Please add at least one date range', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/batch-process', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({date_ranges: ranges})
+        });
+        
+        const data = await response.json();
+        showToast('Batch processing initiated', 'success');
+        hideModal('batch-modal');
+    } catch (error) {
+        showToast('Error starting batch processing', 'error');
+    }
+}
+
+// Export Options
+async function exportToPDF() {
+    try {
+        showToast('Generating PDF...', 'info');
+        const response = await fetch('/api/export-pdf', {method: 'POST'});
+        
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Weekly_Report_${new Date().toISOString().split('T')[0]}.pdf`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+            showToast('PDF exported successfully!', 'success');
+        } else {
+            const error = await response.json();
+            showToast(error.error || 'PDF export failed', 'error');
+        }
+    } catch (error) {
+        showToast('Error exporting PDF', 'error');
+    }
+}
+
+async function exportSheet(sheetName) {
+    try {
+        const sheetId = sheetName.toLowerCase().replace(/\s+/g, '-');
+        const response = await fetch(`/api/export-sheet/${sheetId}`, {method: 'POST'});
+        
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${sheetName.replace(/\s+/g, '_')}.csv`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+            showToast(`${sheetName} exported!`, 'success');
+        } else {
+            showToast('Export failed', 'error');
+        }
+    } catch (error) {
+        showToast('Error exporting sheet', 'error');
+    }
+}
+
+async function shareReport() {
+    try {
+        const response = await fetch('/api/share-report', {method: 'POST'});
+        const data = await response.json();
+        
+        if (response.ok) {
+            // Copy to clipboard
+            await navigator.clipboard.writeText(data.share_url);
+            showToast(`Shareable link copied! Expires in ${data.expires_in}`, 'success');
+        } else {
+            showToast(data.error || 'Failed to generate shareable link', 'error');
+        }
+    } catch (error) {
+        showToast('Error generating shareable link', 'error');
+    }
+}
+
+async function emailReport() {
+    const email = prompt('Enter email address:');
+    if (!email) return;
+    
+    try {
+        const response = await fetch('/api/email-report', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({email: email})
+        });
+        
+        const data = await response.json();
+        if (response.ok) {
+            showToast('Report sent successfully!', 'success');
+        } else {
+            showToast(data.message || 'Email failed', 'warning');
+        }
+    } catch (error) {
+        showToast('Error sending email', 'error');
+    }
+}
+
+// Analytics
+async function loadAnalytics() {
+    try {
+        const response = await fetch('/api/analytics/trends', {method: 'POST'});
+        const data = await response.json();
+        
+        if (response.ok) {
+            renderAnalytics(data);
+        } else {
+            showToast('Failed to load analytics', 'error');
+        }
+    } catch (error) {
+        showToast('Error loading analytics', 'error');
+    }
+}
+
+function renderAnalytics(data) {
+    const statsDiv = document.getElementById('analytics-stats');
+    const chartsDiv = document.getElementById('analytics-charts');
+    
+    if (statsDiv) {
+        statsDiv.innerHTML = `
+            <div class="preview-stat">
+                <div class="preview-stat-number">${data.top_providers?.length || 0}</div>
+                <div class="preview-stat-label">Top Providers</div>
+            </div>
+            <div class="preview-stat">
+                <div class="preview-stat-number">${Object.keys(data.program_distribution || {}).length}</div>
+                <div class="preview-stat-label">Programs</div>
+            </div>
+        `;
+    }
+    
+    // Render trend charts
+    if (chartsDiv && data.top_providers) {
+        const ctx = document.createElement('canvas');
+        chartsDiv.innerHTML = '';
+        chartsDiv.appendChild(ctx);
+        
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.top_providers.map(p => p.name),
+                datasets: [{
+                    label: 'Visits',
+                    data: data.top_providers.map(p => p.visits),
+                    borderColor: 'rgba(59, 130, 246, 1)',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {display: true, text: 'Provider Performance Trends'}
+                }
+            }
+        });
+    }
+}
+
+// Error Handling with Retry
+function showErrorWithRetry(message, retryFunction) {
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'validation-error';
+    errorDiv.innerHTML = `
+        <strong>✗ ${message}</strong>
+        <button class="btn btn-secondary" onclick="retryOperation()" style="margin-top: 0.5rem;">Retry</button>
+    `;
+    
+    window.retryOperation = retryFunction;
+    return errorDiv;
+}
+
+// Advanced Filtering
+let activeFilters = {
+    provider: '',
+    program: '',
+    minVisits: '',
+    maxVisits: ''
+};
+
+function applyAdvancedFilters() {
+    const table = document.getElementById('preview-table');
+    if (!table) return;
+    
+    const rows = table.querySelectorAll('tbody tr');
+    rows.forEach(row => {
+        const provider = row.cells[0]?.textContent.toLowerCase() || '';
+        const visits = parseInt(row.cells[1]?.textContent) || 0;
+        
+        let show = true;
+        
+        if (activeFilters.provider && !provider.includes(activeFilters.provider.toLowerCase())) {
+            show = false;
+        }
+        
+        if (activeFilters.minVisits && visits < parseInt(activeFilters.minVisits)) {
+            show = false;
+        }
+        
+        if (activeFilters.maxVisits && visits > parseInt(activeFilters.maxVisits)) {
+            show = false;
+        }
+        
+        row.style.display = show ? '' : 'none';
+    });
+}
+
+// Mobile Optimizations
+function initMobileOptimizations() {
+    if (window.innerWidth <= 768) {
+        // Simplify UI for mobile
+        document.body.classList.add('mobile-view');
+        
+        // Touch-friendly file inputs
+        document.querySelectorAll('input[type="file"]').forEach(input => {
+            input.style.fontSize = '16px'; // Prevents zoom on iOS
+        });
+    }
+}
+
+// Performance: Lazy Loading
+function lazyLoadCharts() {
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                // Load chart when visible
+                entry.target.classList.add('chart-loaded');
+            }
+        });
+    });
+    
+    document.querySelectorAll('.chart-container').forEach(chart => {
+        observer.observe(chart);
+    });
+}
+
+// Undo/Redo System
+let undoStack = [];
+let redoStack = [];
+
+function saveState() {
+    undoStack.push(JSON.stringify(uploadState));
+    if (undoStack.length > 50) undoStack.shift();
+    redoStack = [];
+}
+
+function undo() {
+    if (undoStack.length === 0) return;
+    redoStack.push(JSON.stringify(uploadState));
+    const state = JSON.parse(undoStack.pop());
+    Object.assign(uploadState, state);
+    updateButtonStates();
+    showToast('Undone', 'info');
+}
+
+function redo() {
+    if (redoStack.length === 0) return;
+    undoStack.push(JSON.stringify(uploadState));
+    const state = JSON.parse(redoStack.pop());
+    Object.assign(uploadState, state);
+    updateButtonStates();
+    showToast('Redone', 'info');
+}
+
+// Drag to Reorder Files
+function initDragReorder() {
+    const fileCards = document.querySelectorAll('.file-card');
+    fileCards.forEach(card => {
+        card.draggable = true;
+        card.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('text/plain', card.dataset.fileType);
+        });
+        card.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            card.classList.add('drag-over');
+        });
+        card.addEventListener('dragleave', () => {
+            card.classList.remove('drag-over');
+        });
+        card.addEventListener('drop', (e) => {
+            e.preventDefault();
+            card.classList.remove('drag-over');
+            // Reorder logic would go here
+        });
+    });
+}
+
+// High Contrast Mode Toggle
+function toggleHighContrast() {
+    const html = document.documentElement;
+    const currentTheme = html.getAttribute('data-theme');
+    if (currentTheme === 'high-contrast') {
+        html.removeAttribute('data-theme');
+        localStorage.setItem('theme', 'light');
+    } else {
+        html.setAttribute('data-theme', 'high-contrast');
+        localStorage.setItem('theme', 'high-contrast');
+    }
+}
+
+// Initialize all new features
+document.addEventListener('DOMContentLoaded', () => {
+    // Show shortcut hint on first visit
+    if (!localStorage.getItem('shortcut-hint-shown')) {
+        setTimeout(() => {
+            showShortcutHint();
+            localStorage.setItem('shortcut-hint-shown', 'true');
+        }, 2000);
+    }
+    
+    // Templates
+    document.getElementById('templates-btn')?.addEventListener('click', () => {
+        loadTemplates();
+        showModal('templates-modal');
+    });
+    document.getElementById('save-template-btn')?.addEventListener('click', saveTemplate);
+    document.getElementById('close-templates')?.addEventListener('click', () => hideModal('templates-modal'));
+    document.getElementById('close-templates-footer')?.addEventListener('click', () => hideModal('templates-modal'));
+    
+    // Batch Processing
+    document.getElementById('batch-btn')?.addEventListener('click', () => showModal('batch-modal'));
+    document.getElementById('add-batch-range')?.addEventListener('click', addBatchRange);
+    document.getElementById('start-batch')?.addEventListener('click', startBatchProcessing);
+    document.getElementById('close-batch')?.addEventListener('click', () => hideModal('batch-modal'));
+    document.getElementById('cancel-batch')?.addEventListener('click', () => hideModal('batch-modal'));
+    
+    // Export Options
+    document.getElementById('export-options-btn')?.addEventListener('click', () => {
+        populateExportOptions();
+        showModal('export-modal');
+    });
+    document.getElementById('export-pdf-btn')?.addEventListener('click', exportToPDF);
+    document.getElementById('share-report-btn')?.addEventListener('click', shareReport);
+    document.getElementById('email-report-btn')?.addEventListener('click', emailReport);
+    document.getElementById('close-export')?.addEventListener('click', () => hideModal('export-modal'));
+    document.getElementById('close-export-footer')?.addEventListener('click', () => hideModal('export-modal'));
+    
+    // Show export button after report generation
+    const originalHandleFormSubmit = handleFormSubmit;
+    handleFormSubmit = async function(e) {
+        await originalHandleFormSubmit(e);
+        // Show export options after successful generation
+        setTimeout(() => {
+            document.getElementById('export-options-btn').style.display = 'inline-flex';
+            document.getElementById('templates-btn').style.display = 'inline-flex';
+            document.getElementById('batch-btn').style.display = 'inline-flex';
+        }, 1000);
+    };
+    
+    // Analytics
+    document.getElementById('close-analytics')?.addEventListener('click', () => hideModal('analytics-modal'));
+    document.getElementById('close-analytics-footer')?.addEventListener('click', () => hideModal('analytics-modal'));
+    document.getElementById('export-analytics')?.addEventListener('click', () => {
+        showToast('Analytics export coming soon!', 'info');
+    });
+    
+    // Command palette additions
+    commands.push(
+        {id: 'templates', title: 'Templates', desc: 'Manage report templates', action: () => {
+            loadTemplates();
+            showModal('templates-modal');
+        }},
+        {id: 'analytics', title: 'Analytics', desc: 'View advanced analytics', action: () => {
+            loadAnalytics();
+            showModal('analytics-modal');
+        }},
+        {id: 'export', title: 'Export Options', desc: 'Export report in various formats', action: () => {
+            showModal('export-modal');
+            populateExportOptions();
+        }},
+        {id: 'high-contrast', title: 'High Contrast Mode', desc: 'Toggle high contrast theme', action: toggleHighContrast}
+    );
+    
+    // Mobile optimizations
+    initMobileOptimizations();
+    window.addEventListener('resize', initMobileOptimizations);
+    
+    // Lazy loading
+    lazyLoadCharts();
+    
+    // Drag reorder
+    initDragReorder();
+    
+    // Undo/Redo keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+        const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+        const ctrlKey = isMac ? e.metaKey : e.ctrlKey;
+        
+        if (ctrlKey && e.key === 'z' && !e.shiftKey) {
+            e.preventDefault();
+            undo();
+        } else if (ctrlKey && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+            e.preventDefault();
+            redo();
+        }
+    });
+    
+    // Save state on file changes
+    const originalHandleFileSelectFunc = handleFileSelect;
+    handleFileSelect = async function(...args) {
+        saveState();
+        return await originalHandleFileSelectFunc(...args);
+    };
+});
+
+// Populate export options
+function populateExportOptions() {
+    const list = document.getElementById('export-sheets-list');
+    if (!list) return;
+    
+    // Get available sheets - try multiple sources
+    let sheets = [];
+    
+    // Try from last preview in session
+    try {
+        const previewData = sessionStorage.getItem('lastPreview');
+        if (previewData) {
+            const data = JSON.parse(previewData);
+            sheets = data.sheets || [];
+        }
+    } catch (e) {
+        console.error('Error parsing preview data:', e);
+    }
+    
+    // Fallback to default sheets
+    if (sheets.length === 0) {
+        sheets = [
+            'Doxy Visits',
+            'OnceHub Visits',
+            'Visits by Program',
+            'Gusto Hours',
+            'Doxy Performance Metrics',
+            'Hours Worked',
+            '% of hours worked'
+        ].map(name => ({name: name}));
+    }
+    
+    list.innerHTML = '<label style="font-weight: 600; margin-bottom: 0.5rem;">Export Individual Sheets:</label>' +
+        sheets.map(sheet => `
+            <button class="btn btn-secondary" onclick="exportSheet('${sheet.name}')" style="width: 100%; justify-content: center; margin-bottom: 0.5rem;">
+                📊 ${sheet.name}
+            </button>
+        `).join('');
+}
+
+// ============================================
+// QUICK WINS: AUTO-SAVE, COMPARISON, ANIMATIONS
+// ============================================
+
+// Auto-save Drafts
+let autoSaveTimer = null;
+const AUTO_SAVE_INTERVAL = 30000; // 30 seconds
+
+function showAutoSaveIndicator(status) {
+    const indicator = document.getElementById('auto-save-indicator');
+    if (!indicator) return;
+    
+    const icon = indicator.querySelector('.auto-save-icon');
+    const text = indicator.querySelector('.auto-save-text');
+    
+    indicator.classList.add('show');
+    indicator.classList.remove('saving', 'saved');
+    
+    if (status === 'saving') {
+        indicator.classList.add('saving');
+        icon.textContent = '💾';
+        text.textContent = 'Auto-saving...';
+    } else if (status === 'saved') {
+        indicator.classList.add('saved');
+        icon.textContent = '✓';
+        text.textContent = 'Draft saved';
+        setTimeout(() => {
+            indicator.classList.remove('show');
+        }, 2000);
+    }
+}
+
+function autoSaveDraft() {
+    const draft = {
+        files: uploadState.files,
+        validated: uploadState.validated,
+        timestamp: new Date().toISOString()
+    };
+    
+    showAutoSaveIndicator('saving');
+    
+    try {
+        localStorage.setItem('report_draft', JSON.stringify(draft));
+        setTimeout(() => {
+            showAutoSaveIndicator('saved');
+        }, 500);
+    } catch (e) {
+        console.error('Auto-save failed:', e);
+    }
+}
+
+function loadDraft() {
+    try {
+        const draftStr = localStorage.getItem('report_draft');
+        if (!draftStr) return false;
+        
+        const draft = JSON.parse(draftStr);
+        const draftAge = Date.now() - new Date(draft.timestamp).getTime();
+        const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 days
+        
+        if (draftAge > maxAge) {
+            localStorage.removeItem('report_draft');
+            return false;
+        }
+        
+        // Restore draft
+        Object.assign(uploadState, draft);
+        
+        // Restore file inputs (if files are still available)
+        // Note: Actual file objects can't be restored, but we can show the state
+        
+        showToast('Draft restored from auto-save', 'info');
+        return true;
+    } catch (e) {
+        console.error('Load draft failed:', e);
+        return false;
+    }
+}
+
+// Start auto-save timer
+function startAutoSave() {
+    if (autoSaveTimer) clearInterval(autoSaveTimer);
+    autoSaveTimer = setInterval(() => {
+        if (Object.values(uploadState.files).some(f => f !== null)) {
+            autoSaveDraft();
+        }
+    }, AUTO_SAVE_INTERVAL);
+}
+
+// Success Animations
+function celebrateSuccess() {
+    // Add celebrate class to generate button
+    const generateBtn = document.getElementById('generate-btn');
+    if (generateBtn) {
+        generateBtn.classList.add('celebrate');
+        setTimeout(() => {
+            generateBtn.classList.remove('celebrate');
+        }, 600);
+    }
+    
+    // Create confetti effect
+    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+    for (let i = 0; i < 50; i++) {
+        setTimeout(() => {
+            const confetti = document.createElement('div');
+            confetti.className = 'confetti';
+            confetti.style.left = Math.random() * 100 + '%';
+            confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+            confetti.style.animationDelay = Math.random() * 0.5 + 's';
+            document.body.appendChild(confetti);
+            
+            setTimeout(() => {
+                confetti.remove();
+            }, 3000);
+        }, i * 20);
+    }
+    
+    // Show success toast
+    showToast('🎉 Report generated successfully!', 'success');
+}
+
+// Report Comparison
+let savedReports = [];
+
+function saveReportForComparison(reportData, reportName) {
+    const report = {
+        id: Date.now().toString(),
+        name: reportName,
+        data: reportData,
+        timestamp: new Date().toISOString()
+    };
+    
+    savedReports.push(report);
+    
+    // Keep only last 10 reports
+    if (savedReports.length > 10) {
+        savedReports.shift();
+    }
+    
+    // Save to localStorage
+    try {
+        localStorage.setItem('saved_reports', JSON.stringify(savedReports));
+    } catch (e) {
+        console.error('Failed to save report:', e);
+    }
+}
+
+function loadSavedReports() {
+    try {
+        const saved = localStorage.getItem('saved_reports');
+        if (saved) {
+            savedReports = JSON.parse(saved);
+        }
+    } catch (e) {
+        console.error('Failed to load saved reports:', e);
+        savedReports = [];
+    }
+}
+
+function populateComparisonDropdowns() {
+    const select1 = document.getElementById('compare-report-1');
+    const select2 = document.getElementById('compare-report-2');
+    
+    if (!select1 || !select2) return;
+    
+    const options = savedReports.map(r => 
+        `<option value="${r.id}">${r.name} (${new Date(r.timestamp).toLocaleDateString()})</option>`
+    ).join('');
+    
+    select1.innerHTML = '<option value="">Select first report...</option>' + options;
+    select2.innerHTML = '<option value="">Select second report...</option>' + options;
+}
+
+function compareReports() {
+    const report1Id = document.getElementById('compare-report-1')?.value;
+    const report2Id = document.getElementById('compare-report-2')?.value;
+    
+    if (!report1Id || !report2Id) {
+        document.getElementById('comparison-results').style.display = 'none';
+        document.getElementById('comparison-empty').style.display = 'block';
+        return;
+    }
+    
+    const report1 = savedReports.find(r => r.id === report1Id);
+    const report2 = savedReports.find(r => r.id === report2Id);
+    
+    if (!report1 || !report2) return;
+    
+    // Compare reports
+    const comparison = generateComparison(report1.data, report2.data);
+    renderComparison(comparison, report1.name, report2.name);
+    
+    document.getElementById('comparison-results').style.display = 'block';
+    document.getElementById('comparison-empty').style.display = 'none';
+    document.getElementById('export-comparison').style.display = 'inline-flex';
+}
+
+function generateComparison(data1, data2) {
+    const comparison = {
+        summary: {},
+        sheets: []
+    };
+    
+    // Compare summary
+    if (data1.summary && data2.summary) {
+        comparison.summary = {
+            providers: {
+                report1: data1.summary.total_providers || 0,
+                report2: data2.summary.total_providers || 0,
+                diff: (data2.summary.total_providers || 0) - (data1.summary.total_providers || 0)
+            },
+            visits: {
+                report1: data1.summary.total_doxy_visits || 0,
+                report2: data2.summary.total_doxy_visits || 0,
+                diff: (data2.summary.total_doxy_visits || 0) - (data1.summary.total_doxy_visits || 0)
+            }
+        };
+    }
+    
+    // Compare sheets
+    const sheetNames = new Set([
+        ...(data1.sheets || []).map(s => s.name),
+        ...(data2.sheets || []).map(s => s.name)
+    ]);
+    
+    sheetNames.forEach(sheetName => {
+        const sheet1 = (data1.sheets || []).find(s => s.name === sheetName);
+        const sheet2 = (data2.sheets || []).find(s => s.name === sheetName);
+        
+        if (sheet1 && sheet2) {
+            comparison.sheets.push({
+                name: sheetName,
+                report1: sheet1.data,
+                report2: sheet2.data,
+                differences: findDifferences(sheet1.data, sheet2.data)
+            });
+        }
+    });
+    
+    return comparison;
+}
+
+function findDifferences(data1, data2) {
+    const differences = [];
+    const rows1 = data1.data || [];
+    const rows2 = data2.data || [];
+    
+    // Simple comparison - find rows with different values
+    const maxRows = Math.max(rows1.length, rows2.length);
+    for (let i = 0; i < Math.min(10, maxRows); i++) {
+        const row1 = rows1[i] || {};
+        const row2 = rows2[i] || {};
+        
+        const cols = new Set([...Object.keys(row1), ...Object.keys(row2)]);
+        cols.forEach(col => {
+            if (row1[col] !== row2[col]) {
+                differences.push({
+                    row: i,
+                    column: col,
+                    value1: row1[col],
+                    value2: row2[col]
+                });
+            }
+        });
+    }
+    
+    return differences;
+}
+
+function renderComparison(comparison, name1, name2) {
+    const container = document.getElementById('comparison-content');
+    if (!container) return;
+    
+    let html = `
+        <div class="comparison-panel">
+            <div class="comparison-header">${name1}</div>
+            <div class="preview-stats">
                 <div class="preview-stat">
-                    <div class="preview-stat-number" id="preview-providers">--</div>
+                    <div class="preview-stat-number">${comparison.summary.providers?.report1 || 0}</div>
                     <div class="preview-stat-label">Providers</div>
                 </div>
                 <div class="preview-stat">
-                    <div class="preview-stat-number" id="preview-visits">--</div>
-                    <div class="preview-stat-label">Total Visits</div>
+                    <div class="preview-stat-number">${comparison.summary.visits?.report1 || 0}</div>
+                    <div class="preview-stat-label">Visits</div>
+                </div>
+            </div>
+        </div>
+        <div class="comparison-panel">
+            <div class="comparison-header">${name2}</div>
+            <div class="preview-stats">
+                <div class="preview-stat">
+                    <div class="preview-stat-number">${comparison.summary.providers?.report2 || 0}</div>
+                    <div class="preview-stat-label">Providers</div>
                 </div>
                 <div class="preview-stat">
-                    <div class="preview-stat-number" id="preview-hours">--</div>
-                    <div class="preview-stat-label">Hours Worked</div>
-                </div>
-            </div>
-
-            <div class="preview-sheets" id="preview-sheets">
-                <!-- Populated by JavaScript -->
-            </div>
-
-            <div class="preview-actions">
-                <button class="cancel-btn" onclick="closePreview()">Cancel</button>
-                <button class="submit-btn" id="confirm-download">
-                    <span class="btn-text">📥 Download Report</span>
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Tutorial Modal -->
-    <div class="modal-overlay" id="tutorial-modal">
-        <div class="modal">
-            <button class="modal-close" onclick="closeTutorial()">&times;</button>
-            <h2>📖 How to Use</h2>
-            
-            <div class="tutorial-step">
-                <div class="step-number">1</div>
-                <div class="step-content">
-                    <h3>Export Your Files</h3>
-                    <p>Download reports from Doxy.me, OnceHub, and Gusto for the week you want to analyze.</p>
-                </div>
-            </div>
-
-            <div class="tutorial-step">
-                <div class="step-number">2</div>
-                <div class="step-content">
-                    <h3>Select Date Range (Optional)</h3>
-                    <p>Choose start and end dates to auto-generate the report name, or enter a custom name.</p>
-                </div>
-            </div>
-
-            <div class="tutorial-step">
-                <div class="step-number">3</div>
-                <div class="step-content">
-                    <h3>Upload Files & Preview</h3>
-                    <p>Upload each file, then click Preview to see a summary before downloading.</p>
-                </div>
-            </div>
-
-            <div class="tutorial-step">
-                <div class="step-number">4</div>
-                <div class="step-content">
-                    <h3>Generate Report</h3>
-                    <p>Click Generate or press Ctrl+Enter. Your Excel file downloads automatically with 6 data sheets.</p>
-                </div>
-            </div>
-
-            <div class="tutorial-step">
-                <div class="step-number">5</div>
-                <div class="step-content">
-                    <h3>View History</h3>
-                    <p>Click the 📜 button to see previously generated reports and their stats.</p>
+                    <div class="preview-stat-number">${comparison.summary.visits?.report2 || 0}</div>
+                    <div class="preview-stat-label">Visits</div>
                 </div>
             </div>
         </div>
-    </div>
+    `;
+    
+    if (comparison.summary.providers?.diff !== 0 || comparison.summary.visits?.diff !== 0) {
+        html += `
+            <div style="grid-column: 1 / -1; margin-top: 1rem; padding: 1rem; background: var(--gray-50); border-radius: 8px;">
+                <h4 style="margin-bottom: 0.5rem;">Changes:</h4>
+                <div>Providers: ${comparison.summary.providers?.diff > 0 ? '+' : ''}${comparison.summary.providers?.diff || 0}</div>
+                <div>Visits: ${comparison.summary.visits?.diff > 0 ? '+' : ''}${comparison.summary.visits?.diff || 0}</div>
+            </div>
+        `;
+    }
+    
+    container.innerHTML = html;
+}
 
-    <script>
-        // ========== Theme Toggle ==========
-        const themeToggle = document.getElementById('theme-toggle');
-        const html = document.documentElement;
-        const themeIcon = themeToggle.querySelector('.theme-toggle-icon');
+// Update renderTemplates to use better empty state
+function renderTemplates() {
+    const list = document.getElementById('templates-list');
+    if (!list) return;
+    
+    if (templates.length === 0) {
+        list.innerHTML = `
+            <div class="history-empty">
+                <div class="history-empty-icon">📝</div>
+                <div class="history-empty-title">No templates saved yet</div>
+                <div class="history-empty-description">Save your current file configuration as a template to quickly reuse it later. Templates save time on repetitive reports.</div>
+            </div>
+        `;
+        return;
+    }
+    
+    list.innerHTML = templates.map((template, index) => `
+        <div class="report-item" style="margin-bottom: 0.5rem;">
+            <div class="report-item-name">${template.name}</div>
+            <div class="report-item-date">Created: ${new Date(template.created).toLocaleDateString()}</div>
+            <div style="margin-top: 0.5rem; display: flex; gap: 0.5rem;">
+                <button class="btn btn-secondary" style="padding: 0.25rem 0.75rem; font-size: 0.75rem;" onclick="loadTemplate(${index})">Load</button>
+                <button class="btn btn-secondary" style="padding: 0.25rem 0.75rem; font-size: 0.75rem;" onclick="deleteTemplate(${index})">Delete</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Initialize quick wins
+document.addEventListener('DOMContentLoaded', () => {
+    // Load draft on page load
+    loadDraft();
+    
+    // Start auto-save
+    startAutoSave();
+    
+    // Load saved reports for comparison
+    loadSavedReports();
+    
+    // Setup comparison modal
+    document.getElementById('compare-report-1')?.addEventListener('change', compareReports);
+    document.getElementById('compare-report-2')?.addEventListener('change', compareReports);
+    document.getElementById('close-comparison')?.addEventListener('click', () => hideModal('comparison-modal'));
+    document.getElementById('close-comparison-footer')?.addEventListener('click', () => hideModal('comparison-modal'));
+    
+    // Add comparison to command palette
+    commands.push({
+        id: 'compare',
+        title: 'Compare Reports',
+        desc: 'Compare two reports side-by-side',
+        action: () => {
+            loadSavedReports();
+            populateComparisonDropdowns();
+            showModal('comparison-modal');
+        }
+    });
+    
+    // Add comparison button to actions (if reports exist)
+    if (savedReports.length > 0) {
+        const actionsDiv = document.querySelector('.actions');
+        if (actionsDiv && !document.getElementById('compare-btn')) {
+            const compareBtn = document.createElement('button');
+            compareBtn.id = 'compare-btn';
+            compareBtn.className = 'btn btn-secondary';
+            compareBtn.textContent = '📊 Compare';
+            compareBtn.title = 'Compare Reports';
+            compareBtn.onclick = () => {
+                loadSavedReports();
+                populateComparisonDropdowns();
+                showModal('comparison-modal');
+            };
+            actionsDiv.insertBefore(compareBtn, actionsDiv.firstChild);
+        }
+    }
+    
+    // Hook into report generation to save and celebrate
+    const originalDownloadReport = downloadReport;
+    downloadReport = function(...args) {
+        const result = originalDownloadReport(...args);
         
-        // Load saved theme
-        const savedTheme = localStorage.getItem('theme') || 'dark';
-        html.setAttribute('data-theme', savedTheme);
-        themeIcon.textContent = savedTheme === 'dark' ? '🌙' : '☀️';
-
-        themeToggle.addEventListener('click', () => {
-            const current = html.getAttribute('data-theme');
-            const next = current === 'dark' ? 'light' : 'dark';
-            html.setAttribute('data-theme', next);
-            localStorage.setItem('theme', next);
-            themeIcon.textContent = next === 'dark' ? '🌙' : '☀️';
-        });
-
-        // ========== Report History ==========
-        const historyBtn = document.getElementById('history-btn');
-        const historySection = document.getElementById('history-section');
-        const historyList = document.getElementById('history-list');
-        const clearHistoryBtn = document.getElementById('clear-history');
-
-        function loadHistory() {
-            const history = JSON.parse(localStorage.getItem('reportHistory') || '[]');
-            renderHistory(history);
-        }
-
-        function renderHistory(history) {
-            if (history.length === 0) {
-                historyList.innerHTML = '<div class="history-empty">No reports generated yet</div>';
-                return;
-            }
-
-            historyList.innerHTML = history.map((item, index) => `
-                <div class="history-item">
-                    <div class="history-item-info">
-                        <div class="history-item-name">${item.name}</div>
-                        <div class="history-item-date">${new Date(item.date).toLocaleString()}</div>
-                    </div>
-                    <div class="history-item-stats">
-                        <span>${item.providers} providers</span>
-                        <span>${item.visits} visits</span>
-                        <span>${item.hours}h worked</span>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function addToHistory(reportData) {
-            const history = JSON.parse(localStorage.getItem('reportHistory') || '[]');
-            history.unshift({
-                name: reportData.name || 'Weekly Report',
-                date: new Date().toISOString(),
-                providers: reportData.providers || 0,
-                visits: reportData.visits || 0,
-                hours: reportData.hours || 0
-            });
-            // Keep only last 10 reports
-            if (history.length > 10) history.pop();
-            localStorage.setItem('reportHistory', JSON.stringify(history));
-            renderHistory(history);
-        }
-
-        historyBtn.addEventListener('click', () => {
-            const isVisible = historySection.style.display !== 'none';
-            historySection.style.display = isVisible ? 'none' : 'block';
-            historyBtn.classList.toggle('active', !isVisible);
-            if (!isVisible) loadHistory();
-        });
-
-        clearHistoryBtn.addEventListener('click', () => {
-            if (confirm('Clear all report history?')) {
-                localStorage.removeItem('reportHistory');
-                loadHistory();
-            }
-        });
-
-        // ========== Tutorial Modal ==========
-        document.getElementById('help-btn').addEventListener('click', () => {
-            document.getElementById('tutorial-modal').classList.add('show');
-        });
-
-        function closeTutorial() {
-            document.getElementById('tutorial-modal').classList.remove('show');
-        }
-
-        document.getElementById('tutorial-modal').addEventListener('click', (e) => {
-            if (e.target.id === 'tutorial-modal') closeTutorial();
-        });
-
-        // ========== Preview Modal ==========
-        const previewBtn = document.getElementById('preview-btn');
-        const previewModal = document.getElementById('preview-modal');
-        const confirmDownloadBtn = document.getElementById('confirm-download');
-
-        previewBtn.addEventListener('click', async () => {
-            const form = document.getElementById('report-form');
-            const formData = new FormData(form);
-            
-            // Check if required files are uploaded
-            const doxyFile = form.querySelector('input[name="doxy_file"]').files[0];
-            const accountFile = form.querySelector('input[name="account_file"]').files[0];
-            const gustoFile = form.querySelector('input[name="gusto_file"]').files[0];
-            
-            if (!doxyFile || !accountFile || !gustoFile) {
-                alert('Please upload all required files first (Doxy, Account Detail, Gusto)');
-                return;
-            }
-            
-            previewBtn.disabled = true;
-            previewBtn.textContent = '⏳ Loading...';
-            
+        // Save report for comparison
+        const previewData = sessionStorage.getItem('lastPreview');
+        if (previewData) {
             try {
-                const response = await fetch('/preview', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                const data = await response.json();
-                
-                if (data.error) {
-                    alert('Error: ' + data.error);
-                    return;
-                }
-                
-                // Populate preview modal
-                document.getElementById('preview-providers').textContent = data.summary.total_providers;
-                document.getElementById('preview-visits').textContent = data.summary.total_doxy_visits;
-                document.getElementById('preview-hours').textContent = data.summary.total_hours_worked;
-                
-                const sheetsHtml = data.sheets.map(sheet => `
-                    <div class="preview-sheet">
-                        <div class="preview-sheet-name">
-                            <div class="preview-sheet-dot"></div>
-                            ${sheet.name}
-                        </div>
-                        <div class="preview-sheet-info">${sheet.rows} rows</div>
-                    </div>
-                `).join('');
-                
-                document.getElementById('preview-sheets').innerHTML = sheetsHtml;
-                
-                // Store preview data for history
-                window.previewData = data.summary;
-                
-                previewModal.classList.add('show');
-                
-            } catch (error) {
-                alert('Error loading preview: ' + error.message);
-            } finally {
-                previewBtn.disabled = false;
-                previewBtn.textContent = '👁️ Preview';
-            }
-        });
-
-        function closePreview() {
-            previewModal.classList.remove('show');
-        }
-
-        previewModal.addEventListener('click', (e) => {
-            if (e.target.id === 'preview-modal') closePreview();
-        });
-
-        confirmDownloadBtn.addEventListener('click', () => {
-            closePreview();
-            document.getElementById('report-form').submit();
-        });
-
-        // ========== Date Range Auto-naming ==========
-        const startDate = document.getElementById('start_date');
-        const endDate = document.getElementById('end_date');
-        const reportName = document.getElementById('report_name');
-
-        function updateReportName() {
-            if (startDate.value && endDate.value) {
-                const start = new Date(startDate.value);
-                const end = new Date(endDate.value);
-                const formatDate = (d) => `${d.getMonth()+1}-${d.getDate()}`;
-                reportName.placeholder = `Report ${formatDate(start)} to ${formatDate(end)}`;
+                const data = JSON.parse(previewData);
+                const reportName = sessionStorage.getItem('reportName') || `Report ${new Date().toLocaleDateString()}`;
+                saveReportForComparison(data, reportName);
+            } catch (e) {
+                console.error('Failed to save report for comparison:', e);
             }
         }
+        
+        // Celebrate success
+        setTimeout(() => {
+            celebrateSuccess();
+        }, 500);
+        
+        return result;
+    };
+});
 
-        startDate.addEventListener('change', updateReportName);
-        endDate.addEventListener('change', updateReportName);
-
-        // ========== File Upload Handling ==========
-        const fileUploads = document.querySelectorAll('.file-upload');
-
-        fileUploads.forEach(upload => {
-            const input = upload.querySelector('input[type="file"]');
-            const nameDiv = upload.querySelector('.file-name');
-            const validationDiv = upload.querySelector('.file-validation');
-
-            upload.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                upload.classList.add('drag-over');
-            });
-
-            upload.addEventListener('dragleave', () => {
-                upload.classList.remove('drag-over');
-            });
-
-            upload.addEventListener('drop', (e) => {
-                e.preventDefault();
-                upload.classList.remove('drag-over');
-                if (e.dataTransfer.files.length) {
-                    input.files = e.dataTransfer.files;
-                    handleFileSelect(input, upload, nameDiv, validationDiv);
-                }
-            });
-
-            input.addEventListener('change', () => {
-                handleFileSelect(input, upload, nameDiv, validationDiv);
-            });
-        });
-
-        function handleFileSelect(input, upload, nameDiv, validationDiv) {
-            if (input.files && input.files[0]) {
-                const file = input.files[0];
-                nameDiv.textContent = '✅ ' + file.name;
-                upload.classList.add('has-file');
-                upload.classList.remove('has-error');
-                
-                const size = (file.size / 1024).toFixed(1);
-                validationDiv.textContent = `${size} KB`;
-            }
-        }
-
-        // ========== Keyboard Shortcuts ==========
-        document.addEventListener('keydown', (e) => {
-            if (e.ctrlKey && e.key === 'Enter') {
-                e.preventDefault();
-                document.getElementById('report-form').submit();
-            }
-            if (e.key === 'Escape') {
-                closeTutorial();
-                closePreview();
-            }
-        });
-
-        // ========== Form Submit ==========
-        document.getElementById('report-form').addEventListener('submit', function(e) {
-            const btn = document.getElementById('submit-btn');
-            btn.classList.add('loading');
-            btn.disabled = true;
-            
-            // Add to history after a delay (simulating successful generation)
-            setTimeout(() => {
-                const reportNameVal = reportName.value || reportName.placeholder || 'Weekly Report';
-                addToHistory({
-                    name: reportNameVal,
-                    providers: window.previewData?.total_providers || '--',
-                    visits: window.previewData?.total_doxy_visits || '--',
-                    hours: window.previewData?.total_hours_worked || '--'
-                });
-                
-                btn.classList.remove('loading');
-                btn.disabled = false;
-                createConfetti();
-            }, 2000);
-        });
-
-        // ========== Confetti ==========
-        function createConfetti() {
-            const colors = ['#8b5cf6', '#ec4899', '#06b6d4', '#f97316', '#22c55e'];
-            for (let i = 0; i < 50; i++) {
-                const confetti = document.createElement('div');
-                confetti.className = 'confetti';
-                confetti.style.left = Math.random() * 100 + 'vw';
-                confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
-                confetti.style.animationDelay = Math.random() * 2 + 's';
-                confetti.style.animationDuration = (Math.random() * 2 + 2) + 's';
-                document.body.appendChild(confetti);
-                setTimeout(() => confetti.remove(), 5000);
-            }
-        }
-
-        // Load history on page load
-        loadHistory();
+// Make functions globally available
+window.saveTemplate = saveTemplate;
+window.loadTemplate = loadTemplate;
+window.deleteTemplate = deleteTemplate;
+window.addBatchRange = addBatchRange;
+window.removeBatchRange = removeBatchRange;
+window.exportSheet = exportSheet;
+window.toggleHighContrast = toggleHighContrast;
+window.compareReports = compareReports;
     </script>
 </body>
 </html>

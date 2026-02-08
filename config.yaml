@@ -1,0 +1,44 @@
+# Provider Name Mappings
+gusto_mappings:
+  "alg care and consulting inc": "Ashley Grout"
+  "alg care and consulting inc.": "Ashley Grout"
+  "cch ventures, pllc": "Catherine Herrington"
+  "cch ventures pllc": "Catherine Herrington"
+  "elizabeth gloor": "Liz Gloor"
+  "megan ryan riffle": "Megan Ryan-Riffle"
+  "jacquelyn sexton": "Jacquelyn Sexton, NP"
+
+visit_mappings:
+  "terray humphrey": "Darius Humphrey"
+  "tim mack": "Timothy Mack"
+
+# Providers without Gusto tracking
+na_providers:
+  - "Bill Carbonneau NP"
+  - "Tzvi Doron"
+  - "Doron Stember"
+  - "Lindsay Burden NP"
+  - "Terray Humphrey"
+  - "Summer Denny"
+
+# Names to exclude from all reports
+excluded_names:
+  - "daniel raphael"
+  - "dan raphael"
+  - "draphael"
+
+# Quality check thresholds
+quality_thresholds:
+  max_percentage_worked: 110
+  min_visits_ratio: 0.3
+  trt_ratio_min: 0.40
+  trt_ratio_max: 0.85
+  min_avg_duration: 5
+  max_avg_duration: 60
+
+# Visit duration assumptions (minutes)
+visit_durations:
+  trt: 20
+  hrt: 20
+  other: 20
+
