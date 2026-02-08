@@ -853,7 +853,10 @@ def get_gusto_hours(gusto_df, doxy_providers, diagnostic=None):
         if pd.isna(name):
             return ''
         name = str(name).strip()
-        name = re.sub(r'\s+(NP|FNP-C|MD|PA|LLC|Inc\.?|INC\.?|PLLC)$', '', name, flags=re.IGNORECASE)
+        # Collapse multiple spaces into single space
+        name = re.sub(r'\s+', ' ', name)
+        # Remove credential suffixes
+        name = re.sub(r'\s+(NP|FNP-C|FNP|MD|PA|LLC|Inc\.?|INC\.?|PLLC)$', '', name, flags=re.IGNORECASE)
         name = re.sub(r',\s*NP$', '', name, flags=re.IGNORECASE)
         return name.lower().strip()
     
@@ -982,7 +985,10 @@ def get_hours_worked(gusto_hours, visits_by_program, diagnostic=None):
         if pd.isna(name):
             return ''
         name = str(name).strip().lower()
-        name = re.sub(r'\s+(np|fnp-c|md|pa|llc|inc\.?|pllc)$', '', name, flags=re.IGNORECASE)
+        # Collapse multiple spaces into single space
+        name = re.sub(r'\s+', ' ', name)
+        # Remove credential suffixes
+        name = re.sub(r'\s+(np|fnp-c|fnp|md|pa|llc|inc\.?|pllc)$', '', name, flags=re.IGNORECASE)
         name = re.sub(r',?\s*np$', '', name, flags=re.IGNORECASE)  # Handle ", NP" or " NP"
         name = name.rstrip(',').strip()  # Remove any trailing commas
         return name.strip()
@@ -1312,7 +1318,10 @@ def normalize_name_for_fuzzy(name):
     if pd.isna(name):
         return ''
     name = str(name).strip()
-    name = re.sub(r'\s+(NP|FNP-C|MD|PA|LLC|Inc\.?|INC\.?|PLLC)$', '', name, flags=re.IGNORECASE)
+    # Collapse multiple spaces into single space
+    name = re.sub(r'\s+', ' ', name)
+    # Remove credential suffixes
+    name = re.sub(r'\s+(NP|FNP-C|FNP|MD|PA|LLC|Inc\.?|INC\.?|PLLC)$', '', name, flags=re.IGNORECASE)
     name = re.sub(r',\s*NP$', '', name, flags=re.IGNORECASE)
     return name.lower().strip()
 
@@ -1532,12 +1541,29 @@ def run_quality_checks(data_dict, diagnostic=None):
     
     # CHECK 4: Providers with visits but no Gusto hours
     if not visits_df.empty and not gusto_df.empty:
-        visit_providers = set(visits_df['Provider name'].dropna())
-        gusto_providers = set(gusto_df['Name'].dropna())
+        # Normalize names for comparison (collapse spaces, remove credentials)
+        def normalize_for_comparison(name):
+            if pd.isna(name):
+                return ''
+            name = str(name).strip()
+            name = re.sub(r'\s+', ' ', name)  # Collapse multiple spaces
+            name = re.sub(r'\s+(NP|FNP-C|FNP|MD|PA|LLC|Inc\.?|INC\.?|PLLC)$', '', name, flags=re.IGNORECASE)
+            name = re.sub(r',\s*NP$', '', name, flags=re.IGNORECASE)
+            return name.lower().strip()
         
-        missing_gusto = visit_providers - gusto_providers
-        # Filter out providers that are intentionally in NA list
-        missing_gusto = [p for p in missing_gusto if p not in PROVIDERS_NA_HOURS]
+        visit_providers_raw = set(visits_df['Provider name'].dropna())
+        gusto_providers_raw = set(gusto_df['Name'].dropna())
+        
+        # Create mapping of normalized -> raw names
+        visit_norm_to_raw = {normalize_for_comparison(p): p for p in visit_providers_raw}
+        gusto_normalized = set(normalize_for_comparison(p) for p in gusto_providers_raw)
+        na_providers_normalized = set(normalize_for_comparison(p) for p in PROVIDERS_NA_HOURS)
+        
+        # Find missing providers using normalized comparison
+        missing_gusto = []
+        for norm_name, raw_name in visit_norm_to_raw.items():
+            if norm_name and norm_name not in gusto_normalized and norm_name not in na_providers_normalized:
+                missing_gusto.append(raw_name)
         
         if missing_gusto:
             issues.append({

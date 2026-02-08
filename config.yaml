@@ -11,8 +11,11 @@ gusto_mappings:
 visit_mappings:
   "terray humphrey": "Darius Humphrey"
   "tim mack": "Timothy Mack"
+  "ashley escoe": "Ashley Alicia Escoe"
+  "timothy mack   fnp-c": "Timothy Mack"
+  "timothy mack fnp-c": "Timothy Mack"
 
-# Providers without Gusto tracking
+# Providers without Gusto tracking (or special cases)
 na_providers:
   - "Bill Carbonneau NP"
   - "Tzvi Doron"
@@ -20,6 +23,8 @@ na_providers:
   - "Lindsay Burden NP"
   - "Terray Humphrey"
   - "Summer Denny"
+  - "Victor Lopez NP"
+  - "Ashley Escoe"
 
 # Names to exclude from all reports
 excluded_names:
