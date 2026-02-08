@@ -1984,25 +1984,18 @@ def generate_report(doxy_file, account_file, gusto_file, booking_file):
     stats = {
         'providers': len(doxy_visits),
         'total_visits': int(doxy_visits['Total Visits'].sum()),
-        'sheets': 7
+        'sheets': 6  # Core sheets without optional reconciliation/alerts
     }
     
     # Create Excel file in memory
     output = io.BytesIO()
     
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        # 1. Provider Reconciliation (most important for gaps)
-        reconciliation.to_excel(writer, sheet_name='Provider Reconciliation', index=False)
-        
-        # 2. Quality Alerts (critical issues)
-        if not quality_alerts.empty:
-            quality_alerts.to_excel(writer, sheet_name='⚠️ Quality Alerts', index=False)
-        
-        # 3. Suggested Name Mappings (from fuzzy matching)
+        # Suggested Name Mappings (from fuzzy matching) - only if there are suggestions
         if not fuzzy_suggestions.empty:
             fuzzy_suggestions.to_excel(writer, sheet_name='Suggested Name Mappings', index=False)
         
-        # 4-10. Regular data sheets
+        # Main data sheets
         doxy_visits.to_excel(writer, sheet_name='Doxy Visits', index=False)
         if oncehub_visits is not None:
             oncehub_visits.to_excel(writer, sheet_name='OnceHub Visits', index=False)
