@@ -2092,46 +2092,6 @@ def generate_report(doxy_file, account_file, gusto_file, booking_file):
         performance_metrics.to_excel(writer, sheet_name='Doxy Performance Metrics', index=False)
         hours_worked.to_excel(writer, sheet_name='Hours Worked', index=False)
         percentage_hours.to_excel(writer, sheet_name='% of hours worked', index=False)
-        
-        # 11. Diagnostics (last, for debugging)
-        diag_summary = diagnostic.get_summary()
-        diag_data = []
-        
-        # Add errors
-        for err in diag_summary['errors']:
-            diag_data.append({
-                'Type': 'ERROR',
-                'Message': err['message'],
-                'Context': str(err.get('context', ''))
-            })
-        
-        # Add warnings
-        for warn in diag_summary['warnings']:
-            diag_data.append({
-                'Type': 'WARNING',
-                'Message': warn['message'],
-                'Context': str(warn.get('context', ''))
-            })
-        
-        # Add info (limit to most recent 20)
-        for info in diag_summary['info'][-20:]:
-            diag_data.append({
-                'Type': 'INFO',
-                'Message': info['message'],
-                'Context': str(info.get('context', ''))
-            })
-        
-        # Add stats
-        for key, value in diag_summary['stats'].items():
-            diag_data.append({
-                'Type': 'STAT',
-                'Message': key,
-                'Context': str(value)
-            })
-        
-        if diag_data:
-            diag_df = pd.DataFrame(diag_data)
-            diag_df.to_excel(writer, sheet_name='Diagnostics', index=False)
     
     output.seek(0)
     
