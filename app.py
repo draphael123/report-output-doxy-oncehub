@@ -1975,21 +1975,88 @@ def generate_report(doxy_file, account_file, gusto_file, booking_file):
     if booking_file and booking_file.filename:
         try:
             booking_df = read_file_as_dataframe(booking_file, diagnostic=diagnostic)
-            # Try to find the booking page column with flexible matching
-            booking_col = None
-            for col in booking_df.columns:
-                col_lower = str(col).lower()
-                if 'booking' in col_lower or 'page' in col_lower or 'provider' in col_lower or 'name' in col_lower:
-                    booking_col = col
-                    break
             
-            if booking_col and booking_col != 'Booking page':
-                booking_df = booking_df.rename(columns={booking_col: 'Booking page'})
-            elif 'Booking page' not in booking_df.columns:
-                # Use first column as provider name if no match found
-                booking_df = booking_df.rename(columns={booking_df.columns[0]: 'Booking page'})
+            # Handle OnceHub's multi-level header structure
+            # Check if columns are tuples (multi-level headers from HTML parsing)
+            if booking_df.columns.nlevels > 1 or (len(booking_df.columns) > 0 and isinstance(booking_df.columns[0], tuple)):
+                if diagnostic:
+                    diagnostic.add_info("Detected multi-level headers in OnceHub file, flattening")
+                # Flatten multi-level columns by taking just the second level
+                booking_df.columns = [col[1] if isinstance(col, tuple) else col for col in booking_df.columns]
+            
+            # Check if the first row contains actual headers (MeetMe Page, All Activities, etc.)
+            if len(booking_df) > 1:
+                first_row_values = booking_df.iloc[0].astype(str).tolist() if len(booking_df) > 0 else []
+                second_row_values = booking_df.iloc[1].astype(str).tolist() if len(booking_df) > 1 else []
+                
+                # Check if second row looks like headers (contains 'MeetMe' or 'All Activities')
+                second_row_str = ' '.join([str(v) for v in second_row_values])
+                if 'MeetMe' in second_row_str or 'All Activities' in second_row_str:
+                    # Use second row as headers
+                    new_headers = booking_df.iloc[1].tolist()
+                    booking_df = booking_df.iloc[2:].reset_index(drop=True)
+                    booking_df.columns = new_headers
+                    if diagnostic:
+                        diagnostic.add_info("Used row 2 as headers for OnceHub file", {'new_columns': list(booking_df.columns)})
+                elif 'MeetMe' in ' '.join([str(v) for v in first_row_values]) or 'All Activities' in ' '.join([str(v) for v in first_row_values]):
+                    # Use first row as headers
+                    new_headers = booking_df.iloc[0].tolist()
+                    booking_df = booking_df.iloc[1:].reset_index(drop=True)
+                    booking_df.columns = new_headers
+                    if diagnostic:
+                        diagnostic.add_info("Used row 1 as headers for OnceHub file", {'new_columns': list(booking_df.columns)})
+            
+            # Standardize column names
+            col_mapping = {}
+            for col in booking_df.columns:
+                col_str = str(col).strip()
+                col_lower = col_str.lower()
+                if 'meetme' in col_lower or 'booking' in col_lower:
+                    col_mapping[col] = 'Booking page'
+                elif 'all activities' in col_lower or 'all_activities' in col_lower:
+                    col_mapping[col] = 'All activities'
+                elif col_lower == 'scheduled':
+                    col_mapping[col] = 'Scheduled'
+                elif col_lower == 'completed':
+                    col_mapping[col] = 'Completed'
+                elif col_lower == 'canceled' or col_lower == 'cancelled':
+                    col_mapping[col] = 'Canceled'
+                elif 'no-show' in col_lower or 'no show' in col_lower or 'noshow' in col_lower:
+                    col_mapping[col] = 'No-show'
+            
+            if col_mapping:
+                booking_df = booking_df.rename(columns=col_mapping)
+                if diagnostic:
+                    diagnostic.add_info("Renamed OnceHub columns", {'mapping': col_mapping})
+            
+            # Remove any 'Total' row at the end
+            if 'Booking page' in booking_df.columns:
+                booking_df = booking_df[booking_df['Booking page'].astype(str).str.lower() != 'total']
+            
+            # Try to find the booking page column with flexible matching (fallback)
+            if 'Booking page' not in booking_df.columns:
+                booking_col = None
+                for col in booking_df.columns:
+                    col_lower = str(col).lower()
+                    if 'booking' in col_lower or 'page' in col_lower or 'provider' in col_lower or 'name' in col_lower:
+                        booking_col = col
+                        break
+                
+                if booking_col:
+                    booking_df = booking_df.rename(columns={booking_col: 'Booking page'})
+                else:
+                    # Use first column as provider name if no match found
+                    booking_df = booking_df.rename(columns={booking_df.columns[0]: 'Booking page'})
+            
+            if diagnostic:
+                diagnostic.add_info("OnceHub file processed", {
+                    'rows': len(booking_df),
+                    'columns': list(booking_df.columns)
+                })
         except Exception as e:
             # OnceHub is optional - just log and continue
+            if diagnostic:
+                diagnostic.add_warning(f"Could not read OnceHub file: {str(e)}")
             booking_df = None
     
     # If there are critical errors, raise them
