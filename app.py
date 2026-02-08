@@ -178,26 +178,19 @@ def should_exclude_name(name):
 
 
 def filter_out_upload_day(doxy_df, diagnostic=None):
-    """Filter out the upload day (Sunday) from Doxy report to show only 6 days.
-    Excludes the day of the week when the report is generated (Sunday = 6).
+    """Process Doxy report data (includes all days including Sundays).
     """
     if doxy_df is None or doxy_df.empty:
         return doxy_df
     
     original_count = len(doxy_df)
     
-    # Get the current day of week (Monday=0, Sunday=6)
-    upload_day_of_week = datetime.now().weekday()
-    # If it's Sunday (6), we want to exclude Sunday data
-    # If it's not Sunday, we still exclude Sunday (day 6)
-    day_to_exclude = 6  # Always exclude Sunday
-    
     if 'Date' not in doxy_df.columns:
         if diagnostic:
-            diagnostic.add_warning("No Date column in Doxy report, cannot filter Sundays")
+            diagnostic.add_info("No Date column in Doxy report")
         return doxy_df
     
-    # Parse dates and filter out the upload day (Sunday)
+    # Parse dates to validate them (but don't filter any days)
     doxy_df = doxy_df.copy()
     doxy_df['Parsed_Date'] = pd.to_datetime(doxy_df['Date'], errors='coerce')
     
@@ -209,13 +202,8 @@ def filter_out_upload_day(doxy_df, diagnostic=None):
             'unparseable': unparseable_count
         })
     
+    # Keep only rows with valid dates
     doxy_df = doxy_df[doxy_df['Parsed_Date'].notna()]
-    
-    # Count Sundays before filtering
-    sunday_count = (doxy_df['Parsed_Date'].dt.dayofweek == day_to_exclude).sum()
-    
-    # Filter out Sunday (day_of_week == 6)
-    doxy_df = doxy_df[doxy_df['Parsed_Date'].dt.dayofweek != day_to_exclude]
     
     # Drop the temporary column
     doxy_df = doxy_df.drop(columns=['Parsed_Date'], errors='ignore')
@@ -223,11 +211,10 @@ def filter_out_upload_day(doxy_df, diagnostic=None):
     final_count = len(doxy_df)
     
     if diagnostic:
-        diagnostic.add_info("Filtered out Sundays from Doxy report", {
+        diagnostic.add_info("Processed Doxy report (all days included)", {
             'original_rows': original_count,
-            'sundays_removed': sunday_count,
             'final_rows': final_count,
-            'rows_removed': original_count - final_count
+            'rows_with_invalid_dates': original_count - final_count
         })
     
     return doxy_df
@@ -276,7 +263,7 @@ def get_doxy_visits(doxy_df, diagnostic=None):
         original_count = len(doxy_df) if doxy_df is not None and not doxy_df.empty else 0
         diagnostic.add_info("Processing Doxy visits", {'input_rows': original_count})
     
-    # Filter out the upload day (Sunday) to show only 6 days
+    # Process Doxy data (validate dates, all days included)
     doxy_df = filter_out_upload_day(doxy_df, diagnostic=diagnostic)
     
     # Filter out excluded names
@@ -635,26 +622,20 @@ def get_visits_by_program(account_content, is_csv=False, start_date=None, end_da
                 'total_rows': len(df)
             })
         
-        # Filter out Sunday (day of week = 6) to match 6-day period (same as Doxy report)
-        before_sunday_filter = len(df)
-        # Only filter if we have valid parsed dates
+        # Keep only rows with valid parsed dates (all days including Sundays are included)
         valid_dates = df['Parsed_Date'].notna()
         df_with_dates = df[valid_dates].copy()
         if len(df_with_dates) > 0:
-            sunday_count = (df_with_dates['Parsed_Date'].dt.dayofweek == 6).sum()
-            df = df_with_dates[df_with_dates['Parsed_Date'].dt.dayofweek != 6].copy()  # Exclude Sunday
+            df = df_with_dates
         else:
             # If no dates could be parsed, keep all rows (they'll be filtered by date range if provided)
-            sunday_count = 0
             df = df.copy()
             if diagnostic:
                 diagnostic.add_warning("No dates could be parsed from Account Detail Report - skipping date filtering")
         
         if diagnostic:
-            diagnostic.add_info("Filtered out Sundays from Account Detail", {
-                'before_filter': before_sunday_filter,
-                'sundays_removed': sunday_count,
-                'after_filter': len(df)
+            diagnostic.add_info("Processed Account Detail dates (all days included)", {
+                'rows_with_valid_dates': len(df)
             })
         
         # Filter by date range if dates are provided
@@ -1909,12 +1890,12 @@ def generate_report(doxy_file, account_file, gusto_file, booking_file):
     oncehub_visits = get_oncehub_visits(booking_df, diagnostic=diagnostic) if booking_df is not None else None
     
     # Extract date range from Doxy report for filtering Account Detail Report
-    # Use filtered Doxy data (excluding Sunday) to determine date range
+    # Use Doxy data to determine date range (all days included)
     start_date = None
     end_date = None
     if doxy_df is not None and 'Date' in doxy_df.columns:
         try:
-            # Filter out Sunday first to get the correct date range
+            # Process Doxy data to get the correct date range
             filtered_doxy = filter_out_upload_day(doxy_df.copy())
             if not filtered_doxy.empty and 'Date' in filtered_doxy.columns:
                 doxy_dates = pd.to_datetime(filtered_doxy['Date'], errors='coerce')
