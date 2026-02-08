@@ -849,33 +849,16 @@ def get_gusto_hours(gusto_df, doxy_providers, diagnostic=None):
             'mapped_providers': mapped_names[:10]  # Show first 10
         })
     
-    def normalize_name(name):
-        if pd.isna(name):
-            return ''
-        name = str(name).strip()
-        # Collapse multiple spaces into single space
-        name = re.sub(r'\s+', ' ', name)
-        # Remove credential suffixes
-        name = re.sub(r'\s+(NP|FNP-C|FNP|MD|PA|LLC|Inc\.?|INC\.?|PLLC)$', '', name, flags=re.IGNORECASE)
-        name = re.sub(r',\s*NP$', '', name, flags=re.IGNORECASE)
-        return name.lower().strip()
-    
-    doxy_normalized = set(normalize_name(p) for p in doxy_providers)
-    gusto_df['Name_normalized'] = gusto_df['Name'].apply(normalize_name)
-    
-    def is_in_doxy(name_normalized):
-        if not name_normalized:
+    # Use smart name matching to find Gusto providers in Doxy
+    def is_in_doxy(gusto_name):
+        if pd.isna(gusto_name) or not gusto_name:
             return False
-        for doxy_name in doxy_normalized:
-            name_parts = set(name_normalized.split())
-            doxy_parts = set(doxy_name.split())
-            if len(name_parts.intersection(doxy_parts)) >= 2:
-                return True
-            if name_normalized == doxy_name:
+        for doxy_name in doxy_providers:
+            if smart_name_match(gusto_name, doxy_name):
                 return True
         return False
     
-    gusto_df['In_Doxy'] = gusto_df['Name_normalized'].apply(is_in_doxy)
+    gusto_df['In_Doxy'] = gusto_df['Name'].apply(is_in_doxy)
     
     # Track matching
     matched_providers = gusto_df[gusto_df['In_Doxy']]['Name'].unique().tolist()
@@ -1070,11 +1053,9 @@ def get_hours_worked(gusto_hours, visits_by_program, diagnostic=None):
             result = pd.concat([result, new_row], ignore_index=True)
         return result
     
-    gusto['Name_norm'] = gusto['Name'].apply(normalize_name)
-    
-    # Use left join to include all providers with Gusto hours, even if they have no visits
+    # Use smart matching to link Gusto providers to visit providers
     if not visits.empty and 'Provider' in visits.columns:
-        # Apply name mappings to visits before normalizing
+        # Apply name mappings to visits first
         def apply_visit_mapping(name):
             if pd.isna(name):
                 return name
@@ -1082,8 +1063,27 @@ def get_hours_worked(gusto_hours, visits_by_program, diagnostic=None):
             return VISIT_NAME_MAPPINGS.get(name_lower, name)
         
         visits['Provider_mapped'] = visits['Provider'].apply(apply_visit_mapping)
-        visits['Name_norm'] = visits['Provider_mapped'].apply(normalize_name)
-        merged = pd.merge(gusto, visits, on='Name_norm', how='left')
+        visit_providers = visits['Provider_mapped'].unique().tolist()
+        
+        # For each Gusto provider, find matching visit provider using smart matching
+        def find_visit_match(gusto_name):
+            if pd.isna(gusto_name):
+                return None
+            for visit_name in visit_providers:
+                if smart_name_match(gusto_name, visit_name):
+                    return visit_name
+            return None
+        
+        gusto['Matched_Visit_Provider'] = gusto['Name'].apply(find_visit_match)
+        
+        # Merge using the matched provider names
+        merged = pd.merge(
+            gusto, 
+            visits, 
+            left_on='Matched_Visit_Provider', 
+            right_on='Provider_mapped', 
+            how='left'
+        )
     else:
         # If visits is empty, create a merged DataFrame with just Gusto data
         merged = gusto.copy()
@@ -1117,28 +1117,31 @@ def get_hours_worked(gusto_hours, visits_by_program, diagnostic=None):
     
     # Add N/A providers with calculated hours from visits
     if not visits.empty and 'Provider' in visits.columns:
-        # Apply name mappings to visits before normalizing (if not already done)
-        if 'Name_norm' not in visits.columns:
+        # Apply name mappings to visits before matching (if not already done)
+        if 'Provider_mapped' not in visits.columns:
             def apply_visit_mapping(name):
                 if pd.isna(name):
                     return name
                 name_lower = str(name).lower().strip()
                 return VISIT_NAME_MAPPINGS.get(name_lower, name)
             visits['Provider_mapped'] = visits['Provider'].apply(apply_visit_mapping)
-            visits['Name_norm'] = visits['Provider_mapped'].apply(normalize_name)
+        
+        visit_providers = visits['Provider_mapped'].unique().tolist()
+        
         for provider_name in PROVIDERS_NA_HOURS:
-            provider_norm = normalize_name(provider_name)
-            # Check if there's an alternative name mapping for visits
-            lookup_name = VISIT_NAME_MAPPINGS.get(provider_norm, provider_norm)
-            if lookup_name != provider_norm:
-                lookup_name = normalize_name(lookup_name)
-            visit_match = visits[visits['Name_norm'] == lookup_name]
-            if not visit_match.empty:
-                row = visit_match.iloc[0]
-                trt = row['TRT'] if 'TRT' in row else 0
-                hrt = row['HRT'] if 'HRT' in row else 0
-                other = row['Other'] if 'Other' in row else 0
-                total = row['Total'] if 'Total' in row else (trt + hrt + other)
+            # Use smart matching to find visit provider
+            matched_visit = find_smart_match(provider_name, visit_providers)
+            
+            if matched_visit:
+                visit_match = visits[visits['Provider_mapped'] == matched_visit]
+                if not visit_match.empty:
+                    row = visit_match.iloc[0]
+                    trt = row['TRT'] if 'TRT' in row else 0
+                    hrt = row['HRT'] if 'HRT' in row else 0
+                    other = row['Other'] if 'Other' in row else 0
+                    total = row['Total'] if 'Total' in row else (trt + hrt + other)
+                else:
+                    trt, hrt, other, total = 0, 0, 0, 0
             else:
                 # No visits found - show 0 hours worked
                 trt, hrt, other, total = 0, 0, 0, 0
@@ -1324,6 +1327,92 @@ def normalize_name_for_fuzzy(name):
     name = re.sub(r'\s+(NP|FNP-C|FNP|MD|PA|LLC|Inc\.?|INC\.?|PLLC)$', '', name, flags=re.IGNORECASE)
     name = re.sub(r',\s*NP$', '', name, flags=re.IGNORECASE)
     return name.lower().strip()
+
+
+def smart_name_match(name1, name2):
+    """
+    Smart name matching that handles common variations:
+    - Credential suffixes (NP, FNP-C, MD, etc.)
+    - Middle names (Ashley Escoe vs Ashley Alicia Escoe)
+    - Multiple spaces
+    - Case differences
+    
+    Returns True if names are considered a match.
+    """
+    if pd.isna(name1) or pd.isna(name2):
+        return False
+    
+    # Normalize both names
+    def normalize(name):
+        name = str(name).strip().lower()
+        # Collapse multiple spaces
+        name = re.sub(r'\s+', ' ', name)
+        # Remove credential suffixes
+        name = re.sub(r'\s+(np|fnp-c|fnp|md|pa|llc|inc\.?|pllc)$', '', name)
+        name = re.sub(r',?\s*np$', '', name)
+        name = name.rstrip(',').strip()
+        return name
+    
+    n1 = normalize(name1)
+    n2 = normalize(name2)
+    
+    # Exact match after normalization
+    if n1 == n2:
+        return True
+    
+    # Split into parts
+    parts1 = n1.split()
+    parts2 = n2.split()
+    
+    if not parts1 or not parts2:
+        return False
+    
+    # RULE 1: First and last name match (handles middle name differences)
+    # e.g., "ashley escoe" vs "ashley alicia escoe"
+    if len(parts1) >= 2 and len(parts2) >= 2:
+        if parts1[0] == parts2[0] and parts1[-1] == parts2[-1]:
+            return True
+    
+    # RULE 2: One name is first+last, other has middle name(s)
+    # e.g., "ashley escoe" matches "ashley alicia escoe"
+    if len(parts1) == 2 and len(parts2) >= 2:
+        if parts1[0] == parts2[0] and parts1[1] == parts2[-1]:
+            return True
+    if len(parts2) == 2 and len(parts1) >= 2:
+        if parts2[0] == parts1[0] and parts2[1] == parts1[-1]:
+            return True
+    
+    # RULE 3: All parts of shorter name exist in longer name
+    if len(parts1) < len(parts2):
+        if all(p in parts2 for p in parts1):
+            return True
+    elif len(parts2) < len(parts1):
+        if all(p in parts1 for p in parts2):
+            return True
+    
+    # RULE 4: At least 2 name parts in common (for partial matches)
+    common_parts = set(parts1) & set(parts2)
+    if len(common_parts) >= 2:
+        return True
+    
+    return False
+
+
+def find_smart_match(source_name, target_list, diagnostic=None):
+    """
+    Find a match for source_name in target_list using smart matching rules.
+    Returns the matched name from target_list, or None if no match.
+    """
+    if pd.isna(source_name) or not target_list:
+        return None
+    
+    for target_name in target_list:
+        if smart_name_match(source_name, target_name):
+            if diagnostic:
+                diagnostic.add_info(f"Smart match found: '{source_name}' → '{target_name}'")
+            return target_name
+    
+    return None
 
 
 def find_best_fuzzy_match(source_name, target_list, threshold=85):
@@ -1541,29 +1630,28 @@ def run_quality_checks(data_dict, diagnostic=None):
     
     # CHECK 4: Providers with visits but no Gusto hours
     if not visits_df.empty and not gusto_df.empty:
-        # Normalize names for comparison (collapse spaces, remove credentials)
-        def normalize_for_comparison(name):
-            if pd.isna(name):
-                return ''
-            name = str(name).strip()
-            name = re.sub(r'\s+', ' ', name)  # Collapse multiple spaces
-            name = re.sub(r'\s+(NP|FNP-C|FNP|MD|PA|LLC|Inc\.?|INC\.?|PLLC)$', '', name, flags=re.IGNORECASE)
-            name = re.sub(r',\s*NP$', '', name, flags=re.IGNORECASE)
-            return name.lower().strip()
+        visit_providers_raw = list(visits_df['Provider name'].dropna().unique())
+        gusto_providers_raw = list(gusto_df['Name'].dropna().unique())
         
-        visit_providers_raw = set(visits_df['Provider name'].dropna())
-        gusto_providers_raw = set(gusto_df['Name'].dropna())
-        
-        # Create mapping of normalized -> raw names
-        visit_norm_to_raw = {normalize_for_comparison(p): p for p in visit_providers_raw}
-        gusto_normalized = set(normalize_for_comparison(p) for p in gusto_providers_raw)
-        na_providers_normalized = set(normalize_for_comparison(p) for p in PROVIDERS_NA_HOURS)
-        
-        # Find missing providers using normalized comparison
+        # Find missing providers using smart matching
         missing_gusto = []
-        for norm_name, raw_name in visit_norm_to_raw.items():
-            if norm_name and norm_name not in gusto_normalized and norm_name not in na_providers_normalized:
-                missing_gusto.append(raw_name)
+        for visit_provider in visit_providers_raw:
+            # Check if this visit provider matches any Gusto provider
+            has_gusto_match = False
+            for gusto_provider in gusto_providers_raw:
+                if smart_name_match(visit_provider, gusto_provider):
+                    has_gusto_match = True
+                    break
+            
+            # Also check if in N/A providers list
+            if not has_gusto_match:
+                for na_provider in PROVIDERS_NA_HOURS:
+                    if smart_name_match(visit_provider, na_provider):
+                        has_gusto_match = True
+                        break
+            
+            if not has_gusto_match:
+                missing_gusto.append(visit_provider)
         
         if missing_gusto:
             issues.append({

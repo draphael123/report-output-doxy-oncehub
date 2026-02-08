@@ -7,7 +7,7 @@ gusto_mappings:
   "elizabeth gloor": "Liz Gloor"
   "megan ryan riffle": "Megan Ryan-Riffle"
   "jacquelyn sexton": "Jacquelyn Sexton, NP"
-  "ashley alicia escoe": "Ashley Escoe"
+  # Note: "ashley alicia escoe" -> "Ashley Escoe" is now handled by smart matching automatically
 
 visit_mappings:
   "terray humphrey": "Darius Humphrey"
