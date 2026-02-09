@@ -929,25 +929,28 @@ def get_doxy_performance_metrics(doxy_df, diagnostic=None):
     # Filter out excluded names
     doxy_df = doxy_df[~doxy_df['Provider name'].apply(should_exclude_name)]
     
+    # Filter out specific providers: Doron Stember, Lindsay Burden, Tzvi Doron
+    providers_to_exclude = ['Doron Stember', 'Lindsay Burden', 'Tzvi Doron', 
+                           'Doron Stember, MD', 'Lindsay Burden NP', 'Lindsay Burden, NP']
+    doxy_df = doxy_df[~doxy_df['Provider name'].isin(providers_to_exclude)]
+    
     doxy_df['Duration_Minutes'] = doxy_df['Duration'].apply(parse_duration_to_minutes)
     df_valid = doxy_df[doxy_df['Duration_Minutes'].notna()].copy()
     
     metrics = df_valid.groupby('Provider name').agg(
         Total_Visits=('Duration_Minutes', 'count'),
         Visits_Over_20_Min=('Duration_Minutes', lambda x: (x > 20).sum()),
-        Hours_Over_20_Min=('Duration_Minutes', lambda x: (x[x > 20].sum() / 60)),
         Avg_Duration_Min=('Duration_Minutes', 'mean')
     ).reset_index()
     
     metrics['Pct_Over_20_Min'] = (metrics['Visits_Over_20_Min'] / metrics['Total_Visits'] * 100).round(1)
     metrics['Avg_Duration_Min'] = metrics['Avg_Duration_Min'].round(2)
-    metrics['Hours_Over_20_Min'] = metrics['Hours_Over_20_Min'].round(2)
     
     metrics.columns = ['Provider', 'Total Visits', 'Visits Over 20 Min', 
-                       'Hours on 20+ Min Visits', 'Avg Duration (min)', '% Over 20 Min']
+                       'Avg Duration (min)', '% Over 20 Min']
     
     metrics = metrics[['Provider', 'Total Visits', 'Visits Over 20 Min', 
-                       '% Over 20 Min', 'Hours on 20+ Min Visits', 'Avg Duration (min)']]
+                       '% Over 20 Min', 'Avg Duration (min)']]
     
     metrics = metrics.sort_values('Provider', ascending=True)
     
